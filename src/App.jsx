@@ -7,8 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import UserDetail from './pages/UserDetail';
 import Staff from './pages/Staff';
-import Seats from './pages/Seats';
-import SeatDetail from './pages/SeatDetail';
+import Chits from './pages/Chits';
+import ChitDetail from './pages/ChitDetail';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
 
@@ -70,8 +70,8 @@ function AppRoutes() {
         <Route path="users" element={<Users />} />
         <Route path="users/:id" element={<UserDetail />} />
         <Route path="staff" element={<Staff />} />
-        <Route path="seats" element={<Seats />} />
-        <Route path="seats/:id" element={<SeatDetail />} />
+        <Route path="chits" element={<Chits />} />
+        <Route path="chits/:id" element={<ChitDetail />} />
         <Route path="payments" element={<Payments />} />
         <Route path="reports" element={<Reports />} />
       </Route>

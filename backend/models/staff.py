@@ -29,9 +29,9 @@ class Staff(Base):
     
     # Relationships
     created_users = relationship("User", back_populates="creator", foreign_keys="User.created_by")
-    user_assignments = relationship("StaffUser", back_populates="staff")
+    created_chits = relationship("Chit", back_populates="creator")
+    staff_assignments = relationship("StaffUser", back_populates="staff")
     collected_payments = relationship("Payment", back_populates="collected_by")
-    created_seats = relationship("Seat", back_populates="creator")
     
     def is_admin(self) -> bool:
         return self.role == StaffRole.ADMIN

@@ -6,9 +6,9 @@ from database import get_db
 from models.user import User
 from models.staff import Staff
 from models.staff_user import StaffUser
-from models.seat_member import SeatMember
-from models.seat_month import SeatMonth
-from models.seat import Seat
+from models.chit_member import ChitMember
+from models.chit_month import ChitMonth
+from models.chit import Chit
 from models.payment import Payment
 from auth.dependencies import get_current_staff, require_admin, filter_users_for_staff, get_staff_user_ids
 from schemas import UserCreate, UserUpdate, UserResponse, UserDashboard
@@ -162,7 +162,7 @@ async def get_user_dashboard(
 ):
     """
     Get complete member dashboard
-    Shows: all seats, month-wise payment status, balance, late payments
+    Shows: all chits, month-wise payment status, balance, late payments
     """
     user = db.query(User).filter(User.id == user_id).first()
     
@@ -181,39 +181,39 @@ async def get_user_dashboard(
                 detail="You don't have access to this user"
             )
     
-    # Get all seat memberships
-    memberships = db.query(SeatMember).filter(
-        SeatMember.user_id == user_id,
-        SeatMember.is_active == True
+    # Get all chit memberships
+    memberships = db.query(ChitMember).filter(
+        ChitMember.user_id == user_id,
+        ChitMember.is_active == True
     ).all()
     
-    seats_data = []
+    chits_data = []
     total_paid = 0
     total_balance = 0
     pending_months = 0
     
     for membership in memberships:
-        seat = db.query(Seat).filter(Seat.id == membership.seat_id).first()
+        chit = db.query(Chit).filter(Chit.id == membership.chit_id).first()
         
-        # Get all months for this seat
-        months = db.query(SeatMonth).filter(
-            SeatMonth.seat_id == seat.id
-        ).order_by(SeatMonth.month_number).all()
+        # Get all months for this chit
+        months = db.query(ChitMonth).filter(
+            ChitMonth.chit_id == chit.id
+        ).order_by(ChitMonth.month_number).all()
         
-        # Get payments for this user + seat
+        # Get payments for this user + chit
         payments = db.query(Payment).filter(
             Payment.user_id == user_id,
-            Payment.seat_id == seat.id
+            Payment.chit_id == chit.id
         ).all()
         
         # Create payment lookup by month
         paid_months = {}
         user_total_paid = 0
         for payment in payments:
-            if payment.seat_month_id:
+            if payment.chit_month_id:
                 month_num = None
                 for m in months:
-                    if m.id == payment.seat_month_id:
+                    if m.id == payment.chit_month_id:
                         month_num = m.month_number
                         break
                 if month_num:
@@ -222,9 +222,9 @@ async def get_user_dashboard(
         
         # Calculate month-wise status
         month_status = []
-        for i in range(1, seat.total_months + 1):
+        for i in range(1, chit.total_months + 1):
             paid_amount = paid_months.get(i, 0)
-            required = float(seat.monthly_amount)
+            required = float(chit.monthly_amount)
             month_status.append({
                 "month": i,
                 "required": required,
@@ -235,19 +235,19 @@ async def get_user_dashboard(
             if paid_amount < required:
                 pending_months += 1
         
-        seat_balance = float(seat.total_amount) - user_total_paid
+        chit_balance = float(chit.total_amount) - user_total_paid
         total_paid += user_total_paid
-        total_balance += seat_balance
+        total_balance += chit_balance
         
-        seats_data.append({
-            "seat_id": seat.id,
-            "seat_name": seat.seat_name,
-            "total_amount": float(seat.total_amount),
-            "monthly_amount": float(seat.monthly_amount),
-            "total_months": seat.total_months,
+        chits_data.append({
+            "chit_id": chit.id,
+            "chit_name": chit.chit_name,
+            "total_amount": float(chit.total_amount),
+            "monthly_amount": float(chit.monthly_amount),
+            "total_months": chit.total_months,
             "slot_number": membership.slot_number,
             "total_paid": user_total_paid,
-            "balance": seat_balance,
+            "balance": chit_balance,
             "month_status": month_status
         })
     
@@ -261,7 +261,7 @@ async def get_user_dashboard(
             "is_active": user.is_active,
             "created_at": user.created_at
         },
-        "seats": seats_data,
+        "chits": chits_data,
         "total_paid": total_paid,
         "total_balance": total_balance,
         "pending_months": pending_months

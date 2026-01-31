@@ -8,8 +8,8 @@ from database import get_db
 from config import settings
 from models.staff import Staff
 from models.user import User
-from models.seat import Seat
-from models.seat_month import SeatMonth
+from models.chit import Chit
+from models.chit_month import ChitMonth
 from models.payment import Payment, PaymentMode
 from auth.dependencies import get_current_staff, get_staff_user_ids
 from schemas import PaymentCreate, PaymentResponse
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/payments", tags=["Payments"])
 @router.get("")
 async def list_payments(
     user_id: Optional[int] = None,
-    seat_id: Optional[int] = None,
+    chit_id: Optional[int] = None,
     month_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 50,
@@ -37,31 +37,31 @@ async def list_payments(
     
     if user_id:
         query = query.filter(Payment.user_id == user_id)
-    if seat_id:
-        query = query.filter(Payment.seat_id == seat_id)
+    if chit_id:
+        query = query.filter(Payment.chit_id == chit_id)
     if month_id:
-        query = query.filter(Payment.seat_month_id == month_id)
+        query = query.filter(Payment.chit_month_id == month_id)
     
     payments = query.order_by(Payment.payment_date.desc()).offset(skip).limit(limit).all()
     
     result = []
     for p in payments:
         user = db.query(User).filter(User.id == p.user_id).first()
-        seat = db.query(Seat).filter(Seat.id == p.seat_id).first()
+        chit = db.query(Chit).filter(Chit.id == p.chit_id).first()
         collector = db.query(Staff).filter(Staff.id == p.collected_by_staff_id).first()
         
         month_num = None
-        if p.seat_month_id:
-            month = db.query(SeatMonth).filter(SeatMonth.id == p.seat_month_id).first()
+        if p.chit_month_id:
+            month = db.query(ChitMonth).filter(ChitMonth.id == p.chit_month_id).first()
             month_num = month.month_number if month else None
         
         result.append({
             "id": p.id,
             "user_id": p.user_id,
             "user_name": user.name if user else "Unknown",
-            "seat_id": p.seat_id,
-            "seat_name": seat.seat_name if seat else "Unknown",
-            "seat_month_id": p.seat_month_id,
+            "chit_id": p.chit_id,
+            "chit_name": chit.chit_name if chit else "Unknown",
+            "chit_month_id": p.chit_month_id,
             "month_number": month_num,
             "amount_paid": float(p.amount_paid),
             "payment_mode": p.payment_mode.value,
@@ -99,24 +99,24 @@ async def create_payment(
                 detail="You can only record payments for your assigned users"
             )
     
-    # Verify seat exists
-    seat = db.query(Seat).filter(Seat.id == payment_data.seat_id).first()
-    if not seat:
+    # Verify chit exists
+    chit = db.query(Chit).filter(Chit.id == payment_data.chit_id).first()
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
-    # Verify seat_month if provided
-    if payment_data.seat_month_id:
-        seat_month = db.query(SeatMonth).filter(
-            SeatMonth.id == payment_data.seat_month_id,
-            SeatMonth.seat_id == payment_data.seat_id
+    # Verify chit_month if provided
+    if payment_data.chit_month_id:
+        chit_month = db.query(ChitMonth).filter(
+            ChitMonth.id == payment_data.chit_month_id,
+            ChitMonth.chit_id == payment_data.chit_id
         ).first()
-        if not seat_month:
+        if not chit_month:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Seat month not found"
+                detail="Chit month not found"
             )
     
     # Create payment
@@ -124,8 +124,8 @@ async def create_payment(
     
     payment = Payment(
         user_id=payment_data.user_id,
-        seat_id=payment_data.seat_id,
-        seat_month_id=payment_data.seat_month_id,
+        chit_id=payment_data.chit_id,
+        chit_month_id=payment_data.chit_month_id,
         amount_paid=payment_data.amount_paid,
         payment_mode=payment_mode,
         collected_by_staff_id=current_staff.id,
@@ -140,8 +140,8 @@ async def create_payment(
         "id": payment.id,
         "user_id": payment.user_id,
         "user_name": user.name,
-        "seat_id": payment.seat_id,
-        "seat_name": seat.seat_name,
+        "chit_id": payment.chit_id,
+        "chit_name": chit.chit_name,
         "amount_paid": float(payment.amount_paid),
         "payment_mode": payment.payment_mode.value,
         "collected_by_staff_id": payment.collected_by_staff_id,
@@ -230,12 +230,12 @@ async def get_payment(
             )
     
     user = db.query(User).filter(User.id == payment.user_id).first()
-    seat = db.query(Seat).filter(Seat.id == payment.seat_id).first()
+    chit = db.query(Chit).filter(Chit.id == payment.chit_id).first()
     collector = db.query(Staff).filter(Staff.id == payment.collected_by_staff_id).first()
     
     month_num = None
-    if payment.seat_month_id:
-        month = db.query(SeatMonth).filter(SeatMonth.id == payment.seat_month_id).first()
+    if payment.chit_month_id:
+        month = db.query(ChitMonth).filter(ChitMonth.id == payment.chit_month_id).first()
         month_num = month.month_number if month else None
     
     return {
@@ -243,9 +243,9 @@ async def get_payment(
         "user_id": payment.user_id,
         "user_name": user.name if user else "Unknown",
         "user_phone": user.phone if user else "",
-        "seat_id": payment.seat_id,
-        "seat_name": seat.seat_name if seat else "Unknown",
-        "seat_month_id": payment.seat_month_id,
+        "chit_id": payment.chit_id,
+        "chit_name": chit.chit_name if chit else "Unknown",
+        "chit_month_id": payment.chit_month_id,
         "month_number": month_num,
         "amount_paid": float(payment.amount_paid),
         "payment_mode": payment.payment_mode.value,

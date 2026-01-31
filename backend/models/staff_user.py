@@ -23,7 +23,7 @@ class StaffUser(Base):
     )
     
     # Relationships
-    staff = relationship("Staff", back_populates="user_assignments")
+    staff = relationship("Staff", back_populates="staff_assignments")
     user = relationship("User", back_populates="staff_assignments")
     
     def __repr__(self):

@@ -1,17 +1,17 @@
 from models.user import User
 from models.staff import Staff
 from models.staff_user import StaffUser
-from models.seat import Seat
-from models.seat_member import SeatMember
-from models.seat_month import SeatMonth
+from models.chit import Chit
+from models.chit_member import ChitMember
+from models.chit_month import ChitMonth
 from models.payment import Payment
 
 __all__ = [
     "User",
     "Staff", 
     "StaffUser",
-    "Seat",
-    "SeatMember",
-    "SeatMonth",
+    "Chit",
+    "ChitMember",
+    "ChitMonth",
     "Payment"
 ]

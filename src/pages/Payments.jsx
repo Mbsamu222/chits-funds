@@ -13,13 +13,13 @@ export default function Payments() {
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [seats, setSeats] = useState([]);
+    const [chits, setChits] = useState([]);
     const [users, setUsers] = useState([]);
-    const [seatMonths, setSeatMonths] = useState([]);
+    const [chitMonths, setChitMonths] = useState([]);
     const [formData, setFormData] = useState({
         user_id: searchParams.get('user') || '',
-        seat_id: searchParams.get('seat') || '',
-        seat_month_id: '',
+        chit_id: searchParams.get('chit') || '',
+        chit_month_id: '',
         amount_paid: '',
         payment_mode: 'cash',
         notes: ''
@@ -27,19 +27,19 @@ export default function Payments() {
 
     useEffect(() => {
         fetchPayments();
-        fetchSeats();
+        fetchChits();
         fetchUsers();
     }, []);
 
     useEffect(() => {
-        if (formData.seat_id) {
-            fetchSeatMonths(formData.seat_id);
+        if (formData.chit_id) {
+            fetchChitMonths(formData.chit_id);
         }
-    }, [formData.seat_id]);
+    }, [formData.chit_id]);
 
     // Open modal if URL has params
     useEffect(() => {
-        if (searchParams.get('user') && searchParams.get('seat')) {
+        if (searchParams.get('user') && searchParams.get('chit')) {
             setShowModal(true);
         }
     }, [searchParams]);
@@ -55,12 +55,12 @@ export default function Payments() {
         }
     };
 
-    const fetchSeats = async () => {
+    const fetchChits = async () => {
         try {
-            const response = await api.get('/seats');
-            setSeats(response.data);
+            const response = await api.get('/chits');
+            setChits(response.data);
         } catch (error) {
-            console.error('Failed to fetch seats');
+            console.error('Failed to fetch chits');
         }
     };
 
@@ -73,18 +73,18 @@ export default function Payments() {
         }
     };
 
-    const fetchSeatMonths = async (seatId) => {
+    const fetchChitMonths = async (chitId) => {
         try {
-            const response = await api.get(`/seats/${seatId}/months`);
-            setSeatMonths(response.data.months);
+            const response = await api.get(`/chits/${chitId}/months`);
+            setChitMonths(response.data.months);
 
-            // Also set default amount from seat
-            const seat = seats.find(s => s.id === parseInt(seatId));
-            if (seat && !formData.amount_paid) {
-                setFormData(prev => ({ ...prev, amount_paid: seat.monthly_amount }));
+            // Also set default amount from chit
+            const chit = chits.find(s => s.id === parseInt(chitId));
+            if (chit && !formData.amount_paid) {
+                setFormData(prev => ({ ...prev, amount_paid: chit.monthly_amount }));
             }
         } catch (error) {
-            console.error('Failed to fetch seat months');
+            console.error('Failed to fetch chit months');
         }
     };
 
@@ -93,8 +93,8 @@ export default function Payments() {
             await api.post('/payments', {
                 ...formData,
                 user_id: parseInt(formData.user_id),
-                seat_id: parseInt(formData.seat_id),
-                seat_month_id: formData.seat_month_id ? parseInt(formData.seat_month_id) : null,
+                chit_id: parseInt(formData.chit_id),
+                chit_month_id: formData.chit_month_id ? parseInt(formData.chit_month_id) : null,
                 amount_paid: parseFloat(formData.amount_paid)
             });
             toast.success('Payment recorded successfully');
@@ -109,8 +109,8 @@ export default function Payments() {
     const resetForm = () => {
         setFormData({
             user_id: '',
-            seat_id: '',
-            seat_month_id: '',
+            chit_id: '',
+            chit_month_id: '',
             amount_paid: '',
             payment_mode: 'cash',
             notes: ''
@@ -132,7 +132,7 @@ export default function Payments() {
             render: (row) => (
                 <div>
                     <p className="font-medium">{row.user_name}</p>
-                    <p className="text-xs text-[var(--text-muted)]">{row.seat_name}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{row.chit_name}</p>
                 </div>
             )
         },
@@ -193,44 +193,72 @@ export default function Payments() {
     ];
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-8 animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div>
-                    <h1 className="text-2xl font-bold">Payments</h1>
-                    <p className="text-[var(--text-muted)]">Record and track all payments</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">Payments</h1>
+                    <p className="text-[var(--text-muted)] mt-1 text-lg">Record and track all financial transactions</p>
                 </div>
                 <button
                     onClick={() => { resetForm(); setShowModal(true); }}
-                    className="btn btn-primary"
+                    className="btn btn-primary shadow-lg shadow-[var(--primary)]/20 hover:shadow-[var(--primary)]/40 hover:-translate-y-0.5 transition-all"
                 >
-                    <FiPlus /> Record Payment
+                    <FiPlus className="text-xl" /> <span className="font-semibold">Record Payment</span>
                 </button>
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="stat-card">
-                    <p className="stat-label">Total Payments</p>
-                    <p className="stat-value">{payments.length}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-[var(--primary)]/30 group-hover:scale-110 transition-transform">
+                            <FiDollarSign size={24} />
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Total Payments</p>
+                            <p className="stat-value text-[var(--text)]">{payments.length}</p>
+                        </div>
+                    </div>
                 </div>
-                <div className="stat-card">
-                    <p className="stat-label">Total Collected</p>
-                    <p className="stat-value text-[var(--success)]">
-                        {formatCurrency(payments.reduce((sum, p) => sum + p.amount_paid, 0))}
-                    </p>
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--success)] to-emerald-600 text-white shadow-lg shadow-[var(--success)]/30 group-hover:scale-110 transition-transform">
+                            <FiDollarSign size={24} />
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Total Collected</p>
+                            <p className="stat-value text-[var(--success)]">
+                                {formatCurrency(payments.reduce((sum, p) => sum + p.amount_paid, 0))}
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div className="stat-card">
-                    <p className="stat-label">Cash Payments</p>
-                    <p className="stat-value">
-                        {payments.filter(p => p.payment_mode === 'cash').length}
-                    </p>
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
+                            <FiDollarSign size={24} />
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Cash Payments</p>
+                            <p className="stat-value text-[var(--text)]">
+                                {payments.filter(p => p.payment_mode === 'cash').length}
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div className="stat-card">
-                    <p className="stat-label">GPay Payments</p>
-                    <p className="stat-value">
-                        {payments.filter(p => p.payment_mode === 'gpay').length}
-                    </p>
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-blue-500 to-cyan-600 text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
+                            <FiCreditCard size={24} />
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">GPay Payments</p>
+                            <p className="stat-value text-[var(--text)]">
+                                {payments.filter(p => p.payment_mode === 'gpay').length}
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -276,31 +304,31 @@ export default function Payments() {
                     </div>
 
                     <div className="input-group">
-                        <label>Select Seat *</label>
+                        <label>Select Chit *</label>
                         <select
-                            value={formData.seat_id}
-                            onChange={(e) => setFormData({ ...formData, seat_id: e.target.value, seat_month_id: '' })}
+                            value={formData.chit_id}
+                            onChange={(e) => setFormData({ ...formData, chit_id: e.target.value, chit_month_id: '' })}
                             className="select"
                         >
-                            <option value="">Choose seat</option>
-                            {seats.map((seat) => (
-                                <option key={seat.id} value={seat.id}>
-                                    {seat.seat_name} ({formatCurrency(seat.monthly_amount)}/month)
+                            <option value="">Choose chit group</option>
+                            {chits.map((chit) => (
+                                <option key={chit.id} value={chit.id}>
+                                    {chit.chit_name} ({formatCurrency(chit.monthly_amount)}/month)
                                 </option>
                             ))}
                         </select>
                     </div>
 
-                    {formData.seat_id && seatMonths.length > 0 && (
+                    {formData.chit_id && chitMonths.length > 0 && (
                         <div className="input-group">
                             <label>For Month</label>
                             <select
-                                value={formData.seat_month_id}
-                                onChange={(e) => setFormData({ ...formData, seat_month_id: e.target.value })}
+                                value={formData.chit_month_id}
+                                onChange={(e) => setFormData({ ...formData, chit_month_id: e.target.value })}
                                 className="select"
                             >
                                 <option value="">Select month (optional)</option>
-                                {seatMonths.map((month) => (
+                                {chitMonths.map((month) => (
                                     <option key={month.id} value={month.id}>
                                         Month {month.month_number} - {month.status}
                                     </option>

@@ -7,7 +7,7 @@ from database import Base
 class User(Base):
     """
     User model - represents a chit fund member/customer
-    Each user can join multiple seats and has address/phone for contact
+    Each user can join multiple chits and has address/phone for contact
     """
     __tablename__ = "users"
     
@@ -23,9 +23,9 @@ class User(Base):
     # Relationships
     creator = relationship("Staff", back_populates="created_users", foreign_keys=[created_by])
     staff_assignments = relationship("StaffUser", back_populates="user")
-    seat_memberships = relationship("SeatMember", back_populates="user")
+    chit_memberships = relationship("ChitMember", back_populates="user")
     payments = relationship("Payment", back_populates="user")
-    won_months = relationship("SeatMonth", back_populates="winner")
+    won_months = relationship("ChitMonth", back_populates="winner")
     
     def __repr__(self):
         return f"<User(id={self.id}, name={self.name}, phone={self.phone})>"

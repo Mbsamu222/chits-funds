@@ -106,16 +106,16 @@ export default function Staff() {
             key: 'name',
             label: 'Name',
             render: (row) => (
-                <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${row.role === 'admin'
-                            ? 'bg-gradient-to-br from-[var(--accent)] to-[var(--danger)]'
-                            : 'bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)]'
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg ring-2 ring-white/5 ${row.role === 'admin'
+                        ? 'bg-gradient-to-br from-[var(--accent)] to-[var(--danger)] shadow-[var(--accent)]/20'
+                        : 'bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] shadow-[var(--primary)]/20'
                         }`}>
                         {row.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <p className="font-medium">{row.name}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{row.phone}</p>
+                        <p className="font-bold text-[var(--text)]">{row.name}</p>
+                        <p className="text-xs text-[var(--text-muted)] font-medium bg-[var(--surface-light)] px-2 py-0.5 rounded-full inline-block mt-1">{row.phone}</p>
                     </div>
                 </div>
             )
@@ -165,19 +165,45 @@ export default function Staff() {
     }
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-8 animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div>
-                    <h1 className="text-2xl font-bold">Staff</h1>
-                    <p className="text-[var(--text-muted)]">Manage staff members and user assignments</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">Staff <span className="text-[var(--primary)]">Management</span></h1>
+                    <p className="text-[var(--text-muted)] mt-1 text-lg">Manage staff members and user assignments</p>
                 </div>
                 <button
                     onClick={() => { resetForm(); setShowModal(true); }}
-                    className="btn btn-primary"
+                    className="btn btn-primary shadow-lg shadow-[var(--primary)]/20 hover:shadow-[var(--primary)]/40 hover:-translate-y-0.5 transition-all"
                 >
-                    <FiPlus /> Add Staff
+                    <FiPlus className="text-xl" /> <span className="font-semibold">Add Staff</span>
                 </button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-[var(--primary)]/30 group-hover:scale-110 transition-transform">
+                            <FiUsers size={24} />
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Total Staff</p>
+                            <p className="stat-value text-[var(--text)]">{staff.length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--accent)] to-pink-600 text-white shadow-lg shadow-[var(--accent)]/30 group-hover:scale-110 transition-transform">
+                            <div className="font-bold text-xl">A</div>
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Admins</p>
+                            <p className="stat-value text-[var(--text)]">{staff.filter(s => s.role === 'admin').length}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Table */}
@@ -290,8 +316,8 @@ export default function Staff() {
                             <label
                                 key={user.id}
                                 className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${selectedUsers.includes(user.id)
-                                        ? 'bg-[var(--primary)]/20 border border-[var(--primary)]'
-                                        : 'bg-[var(--surface-light)] hover:bg-[var(--surface)]'
+                                    ? 'bg-[var(--primary)]/20 border border-[var(--primary)]'
+                                    : 'bg-[var(--surface-light)] hover:bg-[var(--surface)]'
                                     }`}
                             >
                                 <input

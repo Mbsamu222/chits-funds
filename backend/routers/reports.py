@@ -5,11 +5,11 @@ from sqlalchemy import func
 from datetime import datetime
 from database import get_db
 from models.staff import Staff
-from models.seat import Seat
-from models.seat_month import SeatMonth, MonthStatus
+from models.chit import Chit
+from models.chit_month import ChitMonth, MonthStatus
 from models.payment import Payment
 from auth.dependencies import require_admin
-from schemas import ProfitSummary, SeatProfitReport, MonthProfitReport
+from schemas import ProfitSummary, ChitProfitReport, MonthProfitReport
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -24,88 +24,88 @@ async def get_profit_summary(
     total_collected = db.query(func.sum(Payment.amount_paid)).scalar() or 0
     
     # Total payout from completed months
-    total_payout = db.query(func.sum(SeatMonth.payout_amount)).filter(
-        SeatMonth.status == MonthStatus.COMPLETED
+    total_payout = db.query(func.sum(ChitMonth.payout_amount)).filter(
+        ChitMonth.status == MonthStatus.COMPLETED
     ).scalar() or 0
     
     # Calculate profit
     total_profit = float(total_collected) - float(total_payout)
     
     # Count stats
-    seat_count = db.query(Seat).filter(Seat.is_active == True).count()
-    pending_months = db.query(SeatMonth).filter(
-        SeatMonth.status == MonthStatus.PENDING
+    chit_count = db.query(Chit).filter(Chit.is_active == True).count()
+    pending_months = db.query(ChitMonth).filter(
+        ChitMonth.status == MonthStatus.PENDING
     ).count()
     
     return ProfitSummary(
         total_collected=float(total_collected),
         total_payout=float(total_payout),
         total_profit=total_profit,
-        seat_count=seat_count,
+        chit_count=chit_count,
         pending_months=pending_months
     )
 
 
-@router.get("/profit/seats")
-async def get_profit_by_seats(
+@router.get("/profit/chits")
+async def get_profit_by_chits(
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get seat-wise profit report (Admin only)"""
-    seats = db.query(Seat).all()
+    """Get chit-wise profit report (Admin only)"""
+    chits = db.query(Chit).all()
     
     result = []
-    for seat in seats:
-        # Total collected for this seat
+    for chit in chits:
+        # Total collected for this chit
         collected = db.query(func.sum(Payment.amount_paid)).filter(
-            Payment.seat_id == seat.id
+            Payment.chit_id == chit.id
         ).scalar() or 0
         
-        # Total payout for this seat
-        payout = db.query(func.sum(SeatMonth.payout_amount)).filter(
-            SeatMonth.seat_id == seat.id,
-            SeatMonth.status == MonthStatus.COMPLETED
+        # Total payout for this chit
+        payout = db.query(func.sum(ChitMonth.payout_amount)).filter(
+            ChitMonth.chit_id == chit.id,
+            ChitMonth.status == MonthStatus.COMPLETED
         ).scalar() or 0
         
         # Completed months
-        completed = db.query(SeatMonth).filter(
-            SeatMonth.seat_id == seat.id,
-            SeatMonth.status == MonthStatus.COMPLETED
+        completed = db.query(ChitMonth).filter(
+            ChitMonth.chit_id == chit.id,
+            ChitMonth.status == MonthStatus.COMPLETED
         ).count()
         
         result.append({
-            "seat_id": seat.id,
-            "seat_name": seat.seat_name,
-            "total_amount": float(seat.total_amount),
-            "total_months": seat.total_months,
+            "chit_id": chit.id,
+            "chit_name": chit.chit_name,
+            "total_amount": float(chit.total_amount),
+            "total_months": chit.total_months,
             "completed_months": completed,
             "total_collected": float(collected),
             "total_payout": float(payout),
             "profit": float(collected) - float(payout),
-            "is_active": seat.is_active
+            "is_active": chit.is_active
         })
     
     return result
 
 
-@router.get("/profit/seat/{seat_id}")
-async def get_seat_profit_detail(
-    seat_id: int,
+@router.get("/profit/chit/{chit_id}")
+async def get_chit_profit_detail(
+    chit_id: int,
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Get detailed profit for a specific seat (Admin only)"""
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    """Get detailed profit for a specific chit (Admin only)"""
+    chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
-    if not seat:
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
-    months = db.query(SeatMonth).filter(
-        SeatMonth.seat_id == seat_id
-    ).order_by(SeatMonth.month_number).all()
+    months = db.query(ChitMonth).filter(
+        ChitMonth.chit_id == chit_id
+    ).order_by(ChitMonth.month_number).all()
     
     month_details = []
     total_collected = 0
@@ -115,7 +115,7 @@ async def get_seat_profit_detail(
     for month in months:
         # Collected for this month
         collected = db.query(func.sum(Payment.amount_paid)).filter(
-            Payment.seat_month_id == month.id
+            Payment.chit_month_id == month.id
         ).scalar() or 0
         
         payout = float(month.payout_amount) if month.payout_amount else 0
@@ -135,11 +135,11 @@ async def get_seat_profit_detail(
         })
     
     return {
-        "seat_id": seat.id,
-        "seat_name": seat.seat_name,
-        "total_amount": float(seat.total_amount),
-        "monthly_amount": float(seat.monthly_amount),
-        "total_months": seat.total_months,
+        "chit_id": chit.id,
+        "chit_name": chit.chit_name,
+        "total_amount": float(chit.total_amount),
+        "monthly_amount": float(chit.monthly_amount),
+        "total_months": chit.total_months,
         "summary": {
             "total_collected": total_collected,
             "total_payout": total_payout,
@@ -174,9 +174,9 @@ async def get_monthly_profit(
         monthly_data[month_key]["collected"] += float(p.amount_paid)
     
     # Get payouts by month
-    payouts = db.query(SeatMonth).filter(
-        SeatMonth.status == MonthStatus.COMPLETED,
-        SeatMonth.auction_date != None
+    payouts = db.query(ChitMonth).filter(
+        ChitMonth.status == MonthStatus.COMPLETED,
+        ChitMonth.auction_date != None
     ).all()
     
     for payout in payouts:
@@ -219,12 +219,12 @@ async def get_admin_dashboard(
     # Counts
     total_users = db.query(User).filter(User.is_active == True).count()
     total_staff = db.query(Staff).filter(Staff.is_active == True).count()
-    total_seats = db.query(Seat).filter(Seat.is_active == True).count()
+    total_chits = db.query(Chit).filter(Chit.is_active == True).count()
     
     # Financial summary
     total_collected = db.query(func.sum(Payment.amount_paid)).scalar() or 0
-    total_payout = db.query(func.sum(SeatMonth.payout_amount)).filter(
-        SeatMonth.status == MonthStatus.COMPLETED
+    total_payout = db.query(func.sum(ChitMonth.payout_amount)).filter(
+        ChitMonth.status == MonthStatus.COMPLETED
     ).scalar() or 0
     
     # Recent activity
@@ -235,26 +235,26 @@ async def get_admin_dashboard(
     recent_payment_list = []
     for p in recent_payments:
         user = db.query(User).filter(User.id == p.user_id).first()
-        seat = db.query(Seat).filter(Seat.id == p.seat_id).first()
+        chit = db.query(Chit).filter(Chit.id == p.chit_id).first()
         recent_payment_list.append({
             "id": p.id,
             "user_name": user.name if user else "Unknown",
-            "seat_name": seat.seat_name if seat else "Unknown",
+            "chit_name": chit.chit_name if chit else "Unknown",
             "amount": float(p.amount_paid),
             "mode": p.payment_mode.value,
             "date": p.payment_date
         })
     
     # Pending months count
-    pending_months = db.query(SeatMonth).filter(
-        SeatMonth.status == MonthStatus.PENDING
+    pending_months = db.query(ChitMonth).filter(
+        ChitMonth.status == MonthStatus.PENDING
     ).count()
     
     return {
         "stats": {
             "total_users": total_users,
             "total_staff": total_staff,
-            "total_seats": total_seats,
+            "total_chits": total_chits,
             "pending_months": pending_months
         },
         "financial": {

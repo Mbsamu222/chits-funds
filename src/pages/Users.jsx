@@ -78,13 +78,13 @@ export default function Users() {
             key: 'name',
             label: 'Name',
             render: (row) => (
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-bold">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[var(--primary)]/20 ring-2 ring-white/5">
                         {row.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <p className="font-medium">{row.name}</p>
-                        <p className="text-xs text-[var(--text-muted)]">{row.phone}</p>
+                        <p className="font-bold text-[var(--text)]">{row.name}</p>
+                        <p className="text-xs text-[var(--text-muted)] font-medium bg-[var(--surface-light)] px-2 py-0.5 rounded-full inline-block mt-1">{row.phone}</p>
                     </div>
                 </div>
             )
@@ -139,21 +139,58 @@ export default function Users() {
     ];
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-8 animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                 <div>
-                    <h1 className="text-2xl font-bold">Users</h1>
-                    <p className="text-[var(--text-muted)]">Manage chit fund members</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">Users</h1>
+                    <p className="text-[var(--text-muted)] mt-1 text-lg">Manage chit fund members and their details</p>
                 </div>
                 {isAdmin() && (
                     <button
                         onClick={() => { resetForm(); setShowModal(true); }}
-                        className="btn btn-primary"
+                        className="btn btn-primary shadow-lg shadow-[var(--primary)]/20 hover:shadow-[var(--primary)]/40 hover:-translate-y-0.5 transition-all"
                     >
-                        <FiPlus /> Add User
+                        <FiPlus className="text-xl" /> <span className="font-semibold">Add User</span>
                     </button>
                 )}
+            </div>
+
+            {/* Stats Overview */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-[var(--primary)]/30 group-hover:scale-110 transition-transform">
+                            <FiUsers size={24} />
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Total Users</p>
+                            <p className="stat-value text-[var(--text)]">{users.length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--success)] to-emerald-600 text-white shadow-lg shadow-[var(--success)]/30 group-hover:scale-110 transition-transform">
+                            <div className="font-bold text-xl">A</div>
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Active Users</p>
+                            <p className="stat-value text-[var(--text)]">{users.filter(u => u.is_active).length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="stat-card group">
+                    <div className="flex items-center gap-4">
+                        <div className="stat-icon bg-gradient-to-br from-[var(--text-muted)] to-gray-600 text-white shadow-lg shadow-gray-500/30 group-hover:scale-110 transition-transform">
+                            <div className="font-bold text-xl">I</div>
+                        </div>
+                        <div>
+                            <p className="stat-label mb-1">Inactive Users</p>
+                            <p className="stat-value text-[var(--text)]">{users.filter(u => !u.is_active).length}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Table */}

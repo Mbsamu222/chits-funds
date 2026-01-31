@@ -4,210 +4,210 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from database import get_db
 from models.staff import Staff
-from models.seat import Seat
-from models.seat_member import SeatMember
-from models.seat_month import SeatMonth, MonthStatus
+from models.chit import Chit
+from models.chit_member import ChitMember
+from models.chit_month import ChitMonth, MonthStatus
 from models.user import User
 from auth.dependencies import get_current_staff, require_admin
 from schemas import (
-    SeatCreate, SeatUpdate, SeatResponse, 
-    SeatMemberAdd, SeatMemberResponse,
-    SeatMonthCreate, SeatMonthUpdate, SeatMonthResponse
+    ChitCreate, ChitUpdate, ChitResponse, 
+    ChitMemberAdd, ChitMemberResponse,
+    ChitMonthCreate, ChitMonthUpdate, ChitMonthResponse
 )
 
-router = APIRouter(prefix="/seats", tags=["Seats"])
+router = APIRouter(prefix="/chits", tags=["Chits"])
 
 
-@router.get("", response_model=List[SeatResponse])
-async def list_seats(
+@router.get("", response_model=List[ChitResponse])
+async def list_chits(
     is_active: Optional[bool] = None,
     skip: int = 0,
     limit: int = 50,
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """List all seats"""
-    query = db.query(Seat)
+    """List all chits"""
+    query = db.query(Chit)
     
     if is_active is not None:
-        query = query.filter(Seat.is_active == is_active)
+        query = query.filter(Chit.is_active == is_active)
     
-    seats = query.offset(skip).limit(limit).all()
+    chits = query.offset(skip).limit(limit).all()
     
     return [
-        SeatResponse(
-            id=s.id,
-            seat_name=s.seat_name,
-            total_amount=float(s.total_amount),
-            total_months=s.total_months,
-            monthly_amount=float(s.monthly_amount),
-            start_date=s.start_date.isoformat() if s.start_date else None,
-            is_active=s.is_active,
-            created_at=s.created_at,
-            member_count=len(s.members)
+        ChitResponse(
+            id=c.id,
+            chit_name=c.chit_name,
+            total_amount=float(c.total_amount),
+            total_months=c.total_months,
+            monthly_amount=float(c.monthly_amount),
+            start_date=c.start_date.isoformat() if c.start_date else None,
+            is_active=c.is_active,
+            created_at=c.created_at,
+            member_count=len(c.members)
         )
-        for s in seats
+        for c in chits
     ]
 
 
-@router.post("", response_model=SeatResponse)
-async def create_seat(
-    seat_data: SeatCreate,
+@router.post("", response_model=ChitResponse)
+async def create_chit(
+    chit_data: ChitCreate,
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Create a new seat/chit group (Admin only)"""
+    """Create a new chit group (Admin only)"""
     # Calculate monthly amount
-    monthly = seat_data.total_amount / seat_data.total_months
+    monthly = chit_data.total_amount / chit_data.total_months
     
     # Parse start_date if provided
     start_date = None
-    if seat_data.start_date:
+    if chit_data.start_date:
         try:
-            start_date = datetime.strptime(seat_data.start_date, "%Y-%m-%d").date()
+            start_date = datetime.strptime(chit_data.start_date, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid date format. Use YYYY-MM-DD"
             )
     
-    seat = Seat(
-        seat_name=seat_data.seat_name,
-        total_amount=seat_data.total_amount,
-        total_months=seat_data.total_months,
+    chit = Chit(
+        chit_name=chit_data.chit_name,
+        total_amount=chit_data.total_amount,
+        total_months=chit_data.total_months,
         monthly_amount=monthly,
         start_date=start_date,
         created_by=current_staff.id
     )
     
-    db.add(seat)
+    db.add(chit)
     db.commit()
-    db.refresh(seat)
+    db.refresh(chit)
     
-    # Create SeatMonth entries for each month
-    for month_num in range(1, seat.total_months + 1):
-        seat_month = SeatMonth(
-            seat_id=seat.id,
+    # Create ChitMonth entries for each month
+    for month_num in range(1, chit.total_months + 1):
+        chit_month = ChitMonth(
+            chit_id=chit.id,
             month_number=month_num,
             status=MonthStatus.PENDING
         )
-        db.add(seat_month)
+        db.add(chit_month)
     
     db.commit()
     
-    return SeatResponse(
-        id=seat.id,
-        seat_name=seat.seat_name,
-        total_amount=float(seat.total_amount),
-        total_months=seat.total_months,
-        monthly_amount=float(seat.monthly_amount),
-        start_date=seat.start_date.isoformat() if seat.start_date else None,
-        is_active=seat.is_active,
-        created_at=seat.created_at,
+    return ChitResponse(
+        id=chit.id,
+        chit_name=chit.chit_name,
+        total_amount=float(chit.total_amount),
+        total_months=chit.total_months,
+        monthly_amount=float(chit.monthly_amount),
+        start_date=chit.start_date.isoformat() if chit.start_date else None,
+        is_active=chit.is_active,
+        created_at=chit.created_at,
         member_count=0
     )
 
 
-@router.get("/{seat_id}", response_model=SeatResponse)
-async def get_seat(
-    seat_id: int,
+@router.get("/{chit_id}", response_model=ChitResponse)
+async def get_chit(
+    chit_id: int,
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """Get seat details"""
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    """Get chit details"""
+    chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
-    if not seat:
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
-    return SeatResponse(
-        id=seat.id,
-        seat_name=seat.seat_name,
-        total_amount=float(seat.total_amount),
-        total_months=seat.total_months,
-        monthly_amount=float(seat.monthly_amount),
-        start_date=seat.start_date.isoformat() if seat.start_date else None,
-        is_active=seat.is_active,
-        created_at=seat.created_at,
-        member_count=len(seat.members)
+    return ChitResponse(
+        id=chit.id,
+        chit_name=chit.chit_name,
+        total_amount=float(chit.total_amount),
+        total_months=chit.total_months,
+        monthly_amount=float(chit.monthly_amount),
+        start_date=chit.start_date.isoformat() if chit.start_date else None,
+        is_active=chit.is_active,
+        created_at=chit.created_at,
+        member_count=len(chit.members)
     )
 
 
-@router.put("/{seat_id}", response_model=SeatResponse)
-async def update_seat(
-    seat_id: int,
-    seat_data: SeatUpdate,
+@router.put("/{chit_id}", response_model=ChitResponse)
+async def update_chit(
+    chit_id: int,
+    chit_data: ChitUpdate,
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Update seat (Admin only)"""
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    """Update chit (Admin only)"""
+    chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
-    if not seat:
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
-    if seat_data.seat_name is not None:
-        seat.seat_name = seat_data.seat_name
-    if seat_data.start_date is not None:
+    if chit_data.chit_name is not None:
+        chit.chit_name = chit_data.chit_name
+    if chit_data.start_date is not None:
         try:
-            seat.start_date = datetime.strptime(seat_data.start_date, "%Y-%m-%d").date()
+            chit.start_date = datetime.strptime(chit_data.start_date, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid date format. Use YYYY-MM-DD"
             )
-    if seat_data.is_active is not None:
-        seat.is_active = seat_data.is_active
+    if chit_data.is_active is not None:
+        chit.is_active = chit_data.is_active
     
     db.commit()
-    db.refresh(seat)
+    db.refresh(chit)
     
-    return SeatResponse(
-        id=seat.id,
-        seat_name=seat.seat_name,
-        total_amount=float(seat.total_amount),
-        total_months=seat.total_months,
-        monthly_amount=float(seat.monthly_amount),
-        start_date=seat.start_date.isoformat() if seat.start_date else None,
-        is_active=seat.is_active,
-        created_at=seat.created_at,
-        member_count=len(seat.members)
+    return ChitResponse(
+        id=chit.id,
+        chit_name=chit.chit_name,
+        total_amount=float(chit.total_amount),
+        total_months=chit.total_months,
+        monthly_amount=float(chit.monthly_amount),
+        start_date=chit.start_date.isoformat() if chit.start_date else None,
+        is_active=chit.is_active,
+        created_at=chit.created_at,
+        member_count=len(chit.members)
     )
 
 
 # ========================
-# Seat Members
+# Chit Members
 # ========================
 
-@router.get("/{seat_id}/members")
-async def get_seat_members(
-    seat_id: int,
+@router.get("/{chit_id}/members")
+async def get_chit_members(
+    chit_id: int,
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """Get all members of a seat"""
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    """Get all members of a chit"""
+    chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
-    if not seat:
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
-    members = db.query(SeatMember).filter(SeatMember.seat_id == seat_id).all()
+    members = db.query(ChitMember).filter(ChitMember.chit_id == chit_id).all()
     
     result = []
     for m in members:
         user = db.query(User).filter(User.id == m.user_id).first()
         result.append({
             "id": m.id,
-            "seat_id": m.seat_id,
+            "chit_id": m.chit_id,
             "user_id": m.user_id,
             "user_name": user.name if user else "Unknown",
             "user_phone": user.phone if user else "",
@@ -217,27 +217,27 @@ async def get_seat_members(
         })
     
     return {
-        "seat_id": seat_id,
-        "seat_name": seat.seat_name,
-        "total_slots": seat.total_months,
+        "chit_id": chit_id,
+        "chit_name": chit.chit_name,
+        "total_slots": chit.total_months,
         "members": sorted(result, key=lambda x: x["slot_number"])
     }
 
 
-@router.post("/{seat_id}/members")
-async def add_seat_member(
-    seat_id: int,
-    data: SeatMemberAdd,
+@router.post("/{chit_id}/members")
+async def add_chit_member(
+    chit_id: int,
+    data: ChitMemberAdd,
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Add a member to a seat (Admin only)"""
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    """Add a member to a chit (Admin only)"""
+    chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
-    if not seat:
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
     user = db.query(User).filter(User.id == data.user_id).first()
@@ -248,22 +248,22 @@ async def add_seat_member(
             detail="User not found"
         )
     
-    # Check if user already in this seat
-    existing = db.query(SeatMember).filter(
-        SeatMember.seat_id == seat_id,
-        SeatMember.user_id == data.user_id
+    # Check if user already in this chit
+    existing = db.query(ChitMember).filter(
+        ChitMember.chit_id == chit_id,
+        ChitMember.user_id == data.user_id
     ).first()
     
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already in this seat"
+            detail="User already in this chit"
         )
     
     # Check if slot is taken
-    slot_taken = db.query(SeatMember).filter(
-        SeatMember.seat_id == seat_id,
-        SeatMember.slot_number == data.slot_number
+    slot_taken = db.query(ChitMember).filter(
+        ChitMember.chit_id == chit_id,
+        ChitMember.slot_number == data.slot_number
     ).first()
     
     if slot_taken:
@@ -273,14 +273,14 @@ async def add_seat_member(
         )
     
     # Validate slot number
-    if data.slot_number < 1 or data.slot_number > seat.total_months:
+    if data.slot_number < 1 or data.slot_number > chit.total_months:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Slot number must be between 1 and {seat.total_months}"
+            detail=f"Slot number must be between 1 and {chit.total_months}"
         )
     
-    member = SeatMember(
-        seat_id=seat_id,
+    member = ChitMember(
+        chit_id=chit_id,
         user_id=data.user_id,
         slot_number=data.slot_number
     )
@@ -291,7 +291,7 @@ async def add_seat_member(
     
     return {
         "id": member.id,
-        "seat_id": member.seat_id,
+        "chit_id": member.chit_id,
         "user_id": member.user_id,
         "user_name": user.name,
         "slot_number": member.slot_number,
@@ -299,53 +299,53 @@ async def add_seat_member(
     }
 
 
-@router.delete("/{seat_id}/members/{member_id}")
-async def remove_seat_member(
-    seat_id: int,
+@router.delete("/{chit_id}/members/{member_id}")
+async def remove_chit_member(
+    chit_id: int,
     member_id: int,
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Remove a member from a seat (Admin only)"""
-    member = db.query(SeatMember).filter(
-        SeatMember.id == member_id,
-        SeatMember.seat_id == seat_id
+    """Remove a member from a chit (Admin only)"""
+    member = db.query(ChitMember).filter(
+        ChitMember.id == member_id,
+        ChitMember.chit_id == chit_id
     ).first()
     
     if not member:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Member not found in this seat"
+            detail="Member not found in this chit"
         )
     
     db.delete(member)
     db.commit()
     
-    return {"message": "Member removed from seat"}
+    return {"message": "Member removed from chit"}
 
 
 # ========================
-# Seat Months / Auction
+# Chit Months / Auction
 # ========================
 
-@router.get("/{seat_id}/months")
-async def get_seat_months(
-    seat_id: int,
+@router.get("/{chit_id}/months")
+async def get_chit_months(
+    chit_id: int,
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """Get month-wise status of a seat"""
-    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    """Get month-wise status of a chit"""
+    chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
-    if not seat:
+    if not chit:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Seat not found"
+            detail="Chit not found"
         )
     
-    months = db.query(SeatMonth).filter(
-        SeatMonth.seat_id == seat_id
-    ).order_by(SeatMonth.month_number).all()
+    months = db.query(ChitMonth).filter(
+        ChitMonth.chit_id == chit_id
+    ).order_by(ChitMonth.month_number).all()
     
     result = []
     from models.payment import Payment
@@ -358,19 +358,13 @@ async def get_seat_months(
             winner_name = winner.name if winner else None
         
         # Calculate total collected for this month
-        total_collected = db.query(Payment).filter(
-            Payment.seat_month_id == m.id
-        ).with_entities(db.query(Payment.amount_paid).filter(
-            Payment.seat_month_id == m.id
-        )).all()
-        
         total = sum([float(p.amount_paid) for p in db.query(Payment).filter(
-            Payment.seat_month_id == m.id
+            Payment.chit_month_id == m.id
         ).all()])
         
         result.append({
             "id": m.id,
-            "seat_id": m.seat_id,
+            "chit_id": m.chit_id,
             "month_number": m.month_number,
             "auction_date": m.auction_date.isoformat() if m.auction_date else None,
             "winner_user_id": m.winner_user_id,
@@ -382,25 +376,25 @@ async def get_seat_months(
         })
     
     return {
-        "seat_id": seat_id,
-        "seat_name": seat.seat_name,
-        "total_months": seat.total_months,
+        "chit_id": chit_id,
+        "chit_name": chit.chit_name,
+        "total_months": chit.total_months,
         "months": result
     }
 
 
-@router.put("/{seat_id}/months/{month_number}")
-async def update_seat_month(
-    seat_id: int,
+@router.put("/{chit_id}/months/{month_number}")
+async def update_chit_month(
+    chit_id: int,
     month_number: int,
-    data: SeatMonthUpdate,
+    data: ChitMonthUpdate,
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Update seat month / record auction (Admin only)"""
-    month = db.query(SeatMonth).filter(
-        SeatMonth.seat_id == seat_id,
-        SeatMonth.month_number == month_number
+    """Update chit month / record auction (Admin only)"""
+    month = db.query(ChitMonth).filter(
+        ChitMonth.chit_id == chit_id,
+        ChitMonth.month_number == month_number
     ).first()
     
     if not month:
@@ -419,16 +413,16 @@ async def update_seat_month(
             )
     
     if data.winner_user_id is not None:
-        # Verify user exists and is a member of this seat
-        member = db.query(SeatMember).filter(
-            SeatMember.seat_id == seat_id,
-            SeatMember.user_id == data.winner_user_id
+        # Verify user exists and is a member of this chit
+        member = db.query(ChitMember).filter(
+            ChitMember.chit_id == chit_id,
+            ChitMember.user_id == data.winner_user_id
         ).first()
         
         if not member:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Winner must be a member of this seat"
+                detail="Winner must be a member of this chit"
             )
         
         month.winner_user_id = data.winner_user_id
@@ -456,7 +450,7 @@ async def update_seat_month(
     
     return {
         "id": month.id,
-        "seat_id": month.seat_id,
+        "chit_id": month.chit_id,
         "month_number": month.month_number,
         "auction_date": month.auction_date.isoformat() if month.auction_date else None,
         "winner_user_id": month.winner_user_id,

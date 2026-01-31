@@ -38,7 +38,7 @@ class UserResponse(UserBase):
 
 class UserDashboard(BaseModel):
     user: UserResponse
-    seats: list
+    chits: list
     total_paid: float
     total_balance: float
     pending_months: int
@@ -101,27 +101,27 @@ class ChangePasswordRequest(BaseModel):
 
 
 # =====================
-# Seat Schemas
+# Chit Schemas
 # =====================
 
-class SeatBase(BaseModel):
-    seat_name: str = Field(..., min_length=2, max_length=100)
+class ChitBase(BaseModel):
+    chit_name: str = Field(..., min_length=2, max_length=100)
     total_amount: float = Field(..., gt=0)
     total_months: int = Field(default=20, ge=1, le=100)
     start_date: Optional[str] = None
 
 
-class SeatCreate(SeatBase):
+class ChitCreate(ChitBase):
     pass
 
 
-class SeatUpdate(BaseModel):
-    seat_name: Optional[str] = Field(None, min_length=2, max_length=100)
+class ChitUpdate(BaseModel):
+    chit_name: Optional[str] = Field(None, min_length=2, max_length=100)
     start_date: Optional[str] = None
     is_active: Optional[bool] = None
 
 
-class SeatResponse(SeatBase):
+class ChitResponse(ChitBase):
     id: int
     monthly_amount: float
     is_active: bool
@@ -132,14 +132,14 @@ class SeatResponse(SeatBase):
         from_attributes = True
 
 
-class SeatMemberAdd(BaseModel):
+class ChitMemberAdd(BaseModel):
     user_id: int
     slot_number: int = Field(..., ge=1, le=100)
 
 
-class SeatMemberResponse(BaseModel):
+class ChitMemberResponse(BaseModel):
     id: int
-    seat_id: int
+    chit_id: int
     user_id: int
     user_name: str
     user_phone: str
@@ -152,20 +152,20 @@ class SeatMemberResponse(BaseModel):
 
 
 # =====================
-# Seat Month Schemas
+# Chit Month Schemas
 # =====================
 
-class SeatMonthBase(BaseModel):
+class ChitMonthBase(BaseModel):
     month_number: int = Field(..., ge=1, le=100)
 
 
-class SeatMonthCreate(SeatMonthBase):
+class ChitMonthCreate(ChitMonthBase):
     auction_date: Optional[str] = None
     winner_user_id: Optional[int] = None
     payout_amount: Optional[float] = None
 
 
-class SeatMonthUpdate(BaseModel):
+class ChitMonthUpdate(BaseModel):
     auction_date: Optional[str] = None
     winner_user_id: Optional[int] = None
     payout_amount: Optional[float] = None
@@ -173,9 +173,9 @@ class SeatMonthUpdate(BaseModel):
     status: Optional[str] = None
 
 
-class SeatMonthResponse(SeatMonthBase):
+class ChitMonthResponse(ChitMonthBase):
     id: int
-    seat_id: int
+    chit_id: int
     auction_date: Optional[str] = None
     winner_user_id: Optional[int] = None
     winner_name: Optional[str] = None
@@ -194,8 +194,8 @@ class SeatMonthResponse(SeatMonthBase):
 
 class PaymentBase(BaseModel):
     user_id: int
-    seat_id: int
-    seat_month_id: Optional[int] = None
+    chit_id: int
+    chit_month_id: Optional[int] = None
     amount_paid: float = Field(..., gt=0)
     payment_mode: str = "cash"  # "cash" or "gpay"
     notes: Optional[str] = None
@@ -208,7 +208,7 @@ class PaymentCreate(PaymentBase):
 class PaymentResponse(PaymentBase):
     id: int
     user_name: str
-    seat_name: str
+    chit_name: str
     month_number: Optional[int] = None
     screenshot_url: Optional[str] = None
     collected_by_staff_id: int
@@ -227,13 +227,13 @@ class ProfitSummary(BaseModel):
     total_collected: float
     total_payout: float
     total_profit: float
-    seat_count: int
+    chit_count: int
     pending_months: int
 
 
-class SeatProfitReport(BaseModel):
-    seat_id: int
-    seat_name: str
+class ChitProfitReport(BaseModel):
+    chit_id: int
+    chit_name: str
     total_amount: float
     completed_months: int
     total_collected: float

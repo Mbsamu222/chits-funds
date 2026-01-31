@@ -20,8 +20,8 @@ class Payment(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False, index=True)
-    seat_month_id = Column(Integer, ForeignKey("seat_months.id"), nullable=True, index=True)
+    chit_id = Column(Integer, ForeignKey("chits.id"), nullable=False, index=True)
+    chit_month_id = Column(Integer, ForeignKey("chit_months.id"), nullable=True, index=True)
     amount_paid = Column(Numeric(10, 2), nullable=False)
     payment_mode = Column(SQLEnum(PaymentMode), default=PaymentMode.CASH)
     screenshot_url = Column(String(500), nullable=True)  # For GPay payments
@@ -31,8 +31,8 @@ class Payment(Base):
     
     # Relationships
     user = relationship("User", back_populates="payments")
-    seat = relationship("Seat", back_populates="payments")
-    seat_month = relationship("SeatMonth", back_populates="payments")
+    chit = relationship("Chit", back_populates="payments")
+    chit_month = relationship("ChitMonth", back_populates="payments")
     collected_by = relationship("Staff", back_populates="collected_payments")
     
     def __repr__(self):
