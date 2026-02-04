@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
-import { FiPlus, FiEye, FiEdit, FiPhone, FiMail, FiMapPin } from 'react-icons/fi';
+import { FiPlus, FiUsers, FiEdit, FiEye, FiPhone, FiMail, FiUserCheck, FiUserX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function Users() {
@@ -12,9 +12,10 @@ export default function Users() {
     const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [search, setSearch] = useState('');
+    const [searchValue, setSearchValue] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [editUser, setEditUser] = useState(null);
+    const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
@@ -24,12 +25,14 @@ export default function Users() {
 
     useEffect(() => {
         fetchUsers();
-    }, [search]);
+    }, []);
 
     const fetchUsers = async () => {
         try {
-            const response = await api.get('/users', { params: { search } });
-            setUsers(response.data);
+            const response = await api.get('/users');
+            // Handle paginated response
+            const data = response.data.items || response.data;
+            setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             toast.error('Failed to fetch users');
         } finally {
@@ -39,6 +42,7 @@ export default function Users() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setSaving(true);
 
         try {
             if (editUser) {
@@ -52,12 +56,14 @@ export default function Users() {
             resetForm();
             fetchUsers();
         } catch (error) {
-            const message = error.response?.data?.detail || 'Operation failed';
+            const message = error.response?.data?.detail || 'Failed to save user';
             toast.error(message);
+        } finally {
+            setSaving(false);
         }
     };
 
-    const openEditModal = (user) => {
+    const openEdit = (user) => {
         setEditUser(user);
         setFormData({
             name: user.name,
@@ -73,18 +79,25 @@ export default function Users() {
         setFormData({ name: '', phone: '', email: '', address: '' });
     };
 
+    const filteredUsers = users.filter(user =>
+        user.name.toLowerCase().includes(searchValue.toLowerCase()) ||
+        user.phone.includes(searchValue)
+    );
+
     const columns = [
         {
             key: 'name',
             label: 'Name',
             render: (row) => (
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-[var(--primary)]/20 ring-2 ring-white/5">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div className="avatar avatar-md avatar-gradient" style={{ boxShadow: '0 0 0 2px rgba(255,255,255,0.1)' }}>
                         {row.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <p className="font-bold text-[var(--text)]">{row.name}</p>
-                        <p className="text-xs text-[var(--text-muted)] font-medium bg-[var(--surface-light)] px-2 py-0.5 rounded-full inline-block mt-1">{row.phone}</p>
+                        <p style={{ fontWeight: 600, color: 'var(--text)' }}>{row.name}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <FiPhone size={10} /> {row.phone}
+                        </p>
                     </div>
                 </div>
             )
@@ -93,15 +106,15 @@ export default function Users() {
             key: 'email',
             label: 'Email',
             className: 'hidden md:table-cell',
-            render: (row) => row.email || '-'
-        },
-        {
-            key: 'address',
-            label: 'Address',
-            className: 'hidden lg:table-cell',
-            render: (row) => row.address ? (
-                <span className="truncate max-w-[200px] block">{row.address}</span>
-            ) : '-'
+            render: (row) => (
+                <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {row.email ? (
+                        <><FiMail size={14} /> {row.email}</>
+                    ) : (
+                        <span style={{ color: 'var(--text-dim)' }}>—</span>
+                    )}
+                </span>
+            )
         },
         {
             key: 'status',
@@ -116,21 +129,21 @@ export default function Users() {
             key: 'actions',
             label: 'Actions',
             render: (row) => (
-                <div className="flex items-center gap-2">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <button
                         onClick={(e) => { e.stopPropagation(); navigate(`/users/${row.id}`); }}
-                        className="p-2 rounded-lg hover:bg-[var(--surface-light)] text-[var(--primary)]"
+                        className="btn btn-sm btn-secondary"
                         title="View Details"
                     >
-                        <FiEye />
+                        <FiEye size={14} />
                     </button>
                     {isAdmin() && (
                         <button
-                            onClick={(e) => { e.stopPropagation(); openEditModal(row); }}
-                            className="p-2 rounded-lg hover:bg-[var(--surface-light)] text-[var(--secondary)]"
-                            title="Edit"
+                            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+                            className="btn btn-sm btn-ghost"
+                            title="Edit User"
                         >
-                            <FiEdit />
+                            <FiEdit size={14} />
                         </button>
                     )}
                 </div>
@@ -138,73 +151,162 @@ export default function Users() {
         }
     ];
 
-    return (
-        <div className="space-y-8 animate-fade-in">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight">Users</h1>
-                    <p className="text-[var(--text-muted)] mt-1 text-lg">Manage chit fund members and their details</p>
+    // Mobile card render
+    const mobileCardRender = (row) => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div className="avatar avatar-lg avatar-gradient" style={{ boxShadow: '0 0 0 2px rgba(255,255,255,0.1)', flexShrink: 0 }}>
+                {row.name.charAt(0).toUpperCase()}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {row.name}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                    <FiPhone size={12} /> {row.phone}
                 </div>
-                {isAdmin() && (
-                    <button
-                        onClick={() => { resetForm(); setShowModal(true); }}
-                        className="btn btn-primary shadow-lg shadow-[var(--primary)]/20 hover:shadow-[var(--primary)]/40 hover:-translate-y-0.5 transition-all"
-                    >
-                        <FiPlus className="text-xl" /> <span className="font-semibold">Add User</span>
-                    </button>
+                {row.email && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
+                        <FiMail size={10} /> {row.email}
+                    </div>
                 )}
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                <span className={`badge ${row.is_active ? 'badge-success' : 'badge-danger'}`}>
+                    {row.is_active ? 'Active' : 'Inactive'}
+                </span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/users/${row.id}`); }}
+                        className="btn btn-icon-sm btn-secondary"
+                    >
+                        <FiEye size={14} />
+                    </button>
+                    {isAdmin() && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); openEdit(row); }}
+                            className="btn btn-icon-sm btn-ghost"
+                        >
+                            <FiEdit size={14} />
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-[var(--primary)]/30 group-hover:scale-110 transition-transform">
-                            <FiUsers size={24} />
+    const activeUsers = users.filter(u => u.is_active).length;
+    const inactiveUsers = users.filter(u => !u.is_active).length;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-fade-in">
+            {/* Header */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                        <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.025em' }}>
+                            User <span style={{ color: 'var(--primary)' }}>Management</span>
+                        </h1>
+                        <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Manage all registered users
+                        </p>
+                    </div>
+                    {isAdmin() && (
+                        <button
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                            className="btn btn-primary"
+                        >
+                            <FiPlus /> Add User
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '44px',
+                                height: '44px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiUsers size={20} color="white" />
                         </div>
                         <div>
-                            <p className="stat-label mb-1">Total Users</p>
-                            <p className="stat-value text-[var(--text)]">{users.length}</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Total</p>
+                            <p style={{ fontSize: '1.25rem', fontWeight: 800 }}>{users.length}</p>
                         </div>
                     </div>
                 </div>
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--success)] to-emerald-600 text-white shadow-lg shadow-[var(--success)]/30 group-hover:scale-110 transition-transform">
-                            <div className="font-bold text-xl">A</div>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '44px',
+                                height: '44px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiUserCheck size={20} color="white" />
                         </div>
                         <div>
-                            <p className="stat-label mb-1">Active Users</p>
-                            <p className="stat-value text-[var(--text)]">{users.filter(u => u.is_active).length}</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Active</p>
+                            <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--success)' }}>{activeUsers}</p>
                         </div>
                     </div>
                 </div>
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--text-muted)] to-gray-600 text-white shadow-lg shadow-gray-500/30 group-hover:scale-110 transition-transform">
-                            <div className="font-bold text-xl">I</div>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '44px',
+                                height: '44px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiUserX size={20} color="white" />
                         </div>
                         <div>
-                            <p className="stat-label mb-1">Inactive Users</p>
-                            <p className="stat-value text-[var(--text)]">{users.filter(u => !u.is_active).length}</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Inactive</p>
+                            <p style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--danger)' }}>{inactiveUsers}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Data Table */}
             <DataTable
                 columns={columns}
-                data={users}
+                data={filteredUsers}
                 loading={loading}
-                searchValue={search}
-                onSearchChange={setSearch}
+                searchValue={searchValue}
+                onSearchChange={setSearchValue}
                 onRowClick={(row) => navigate(`/users/${row.id}`)}
                 emptyMessage="No users found"
+                emptyIcon={<FiUsers size={32} />}
+                mobileCardRender={mobileCardRender}
             />
 
-            {/* Add/Edit Modal */}
+
+
+            {/* Modal */}
             <Modal
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
@@ -214,13 +316,23 @@ export default function Users() {
                         <button onClick={() => setShowModal(false)} className="btn btn-secondary">
                             Cancel
                         </button>
-                        <button onClick={handleSubmit} className="btn btn-primary">
-                            {editUser ? 'Update' : 'Create'}
+                        <button
+                            onClick={handleSubmit}
+                            disabled={saving}
+                            className="btn btn-primary"
+                        >
+                            {saving ? (
+                                <div className="spinner spinner-sm" />
+                            ) : editUser ? (
+                                'Update'
+                            ) : (
+                                'Create'
+                            )}
                         </button>
                     </>
                 }
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div className="input-group">
                         <label>Full Name *</label>
                         <input
@@ -235,44 +347,36 @@ export default function Users() {
 
                     <div className="input-group">
                         <label>Phone Number *</label>
-                        <div className="relative">
-                            <FiPhone className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                            <input
-                                type="tel"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="input pl-11"
-                                placeholder="Enter phone number"
-                                required
-                            />
-                        </div>
+                        <input
+                            type="tel"
+                            value={formData.phone}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            className="input"
+                            placeholder="Enter phone number"
+                            required
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Email</label>
-                        <div className="relative">
-                            <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-                            <input
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="input pl-11"
-                                placeholder="Enter email (optional)"
-                            />
-                        </div>
+                        <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            className="input"
+                            placeholder="Enter email (optional)"
+                        />
                     </div>
 
                     <div className="input-group">
                         <label>Address</label>
-                        <div className="relative">
-                            <FiMapPin className="absolute left-4 top-3 text-[var(--text-muted)]" />
-                            <textarea
-                                value={formData.address}
-                                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                className="input pl-11 min-h-[80px]"
-                                placeholder="Enter address (optional)"
-                            />
-                        </div>
+                        <textarea
+                            value={formData.address}
+                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            className="input"
+                            rows={3}
+                            placeholder="Enter address (optional)"
+                        />
                     </div>
                 </form>
             </Modal>

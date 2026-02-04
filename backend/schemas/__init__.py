@@ -246,3 +246,126 @@ class MonthProfitReport(BaseModel):
     total_collected: float
     total_payout: float
     profit: float
+
+
+# =====================
+# Account & Ledger Schemas
+# =====================
+
+class LedgerEntryCreate(BaseModel):
+    """Create a ledger entry (for adjustments)"""
+    user_id: int
+    chit_id: int
+    chit_month_id: Optional[int] = None
+    entry_type: str  # "debit" or "credit"
+    amount: float = Field(..., gt=0)
+    source: str = "adjustment"
+    notes: Optional[str] = None
+
+
+class LedgerEntryResponse(BaseModel):
+    """Response for a single ledger entry"""
+    id: int
+    user_id: int
+    user_name: str
+    chit_id: int
+    chit_name: str
+    chit_month_id: Optional[int] = None
+    month_number: Optional[int] = None
+    entry_type: str  # debit/credit
+    amount: float
+    source: str
+    reference_id: Optional[int] = None
+    reference_type: Optional[str] = None
+    notes: Optional[str] = None
+    created_by_id: int
+    created_by_name: str
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+
+class MonthTally(BaseModel):
+    """Payment status for a single month"""
+    month_number: int
+    chit_month_id: Optional[int] = None
+    due: float
+    paid: float
+    pending: float
+    status: str  # "paid", "partial", "pending", "advance", "not_started"
+
+
+class ChitBalanceSummary(BaseModel):
+    """Balance summary for a user in a specific chit"""
+    chit_id: int
+    chit_name: str
+    monthly_amount: float
+    total_months: int
+    total_due: float
+    total_paid: float
+    pending: float
+    advance: float
+    months: list[MonthTally] = []
+
+
+class UserAccountSummary(BaseModel):
+    """Complete account summary for a user"""
+    user_id: int
+    user_name: str
+    user_phone: str
+    total_due: float
+    total_paid: float
+    pending: float
+    advance: float
+    chits: list[ChitBalanceSummary] = []
+
+
+class AccountsDashboardSummary(BaseModel):
+    """Overall accounts dashboard"""
+    total_users: int
+    total_chits: int
+    total_due: float
+    total_collected: float
+    total_pending: float
+    total_advance: float
+    overdue_users: int
+    overdue_amount: float
+
+
+class GenerateDuesRequest(BaseModel):
+    """Request to generate monthly dues"""
+    chit_id: int
+    month_number: int
+
+
+class GenerateDuesResponse(BaseModel):
+    """Response after generating dues"""
+    chit_id: int
+    chit_name: str
+    month_number: int
+    members_count: int
+    total_dues_generated: float
+    entries_created: int
+
+
+class PaymentAllocationPreview(BaseModel):
+    """Preview of how a payment will be allocated"""
+    user_id: int
+    user_name: str
+    chit_id: int
+    chit_name: str
+    payment_amount: float
+    allocations: list[dict]  # List of {month_number, amount, type}
+    advance_amount: float
+    message: str
+
+
+class PaginatedResponse(BaseModel):
+    """Standard pagination wrapper"""
+    items: list
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+

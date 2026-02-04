@@ -4,14 +4,18 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from database import engine, Base
-from models import User, Staff, StaffUser, Chit, ChitMember, ChitMonth, Payment
+from models import (
+    User, Staff, StaffUser, Chit, ChitMember, ChitMonth, Payment, 
+    AccountLedger, UserBalance, PasswordResetToken, AuditLog
+)
 from routers import (
     auth_router,
     users_router,
     staff_router,
     chits_router,
     payments_router,
-    reports_router
+    reports_router,
+    accounts_router
 )
 from config import settings
 
@@ -64,11 +68,15 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Rate limiting middleware (comment out for development if needed)
+# from middleware.rate_limit import RateLimitMiddleware
+# app.add_middleware(RateLimitMiddleware)
 
 # Mount static files for screenshots
 upload_dir = os.path.abspath(settings.UPLOAD_DIR)
@@ -82,6 +90,7 @@ app.include_router(staff_router)
 app.include_router(chits_router)
 app.include_router(payments_router)
 app.include_router(reports_router)
+app.include_router(accounts_router)
 
 
 @app.get("/")
@@ -100,4 +109,4 @@ async def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

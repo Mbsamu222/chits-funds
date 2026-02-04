@@ -18,23 +18,43 @@ from schemas import (
 router = APIRouter(prefix="/chits", tags=["Chits"])
 
 
-@router.get("", response_model=List[ChitResponse])
+@router.get("")
 async def list_chits(
     is_active: Optional[bool] = None,
-    skip: int = 0,
-    limit: int = 50,
+    search: Optional[str] = Query(None, description="Search by chit name"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(50, ge=1, le=100, description="Items per page"),
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """List all chits"""
+    """
+    List all chits with pagination
+    
+    Returns paginated response with:
+    - items: list of chits
+    - total: total count
+    - page: current page
+    - per_page: items per page
+    - total_pages: total number of pages
+    """
     query = db.query(Chit)
     
     if is_active is not None:
         query = query.filter(Chit.is_active == is_active)
     
-    chits = query.offset(skip).limit(limit).all()
+    if search:
+        query = query.filter(Chit.chit_name.ilike(f"%{search}%"))
     
-    return [
+    # Get total count
+    total = query.count()
+    
+    # Calculate pagination
+    skip = (page - 1) * per_page
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    
+    chits = query.order_by(Chit.created_at.desc()).offset(skip).limit(per_page).all()
+    
+    items = [
         ChitResponse(
             id=c.id,
             chit_name=c.chit_name,
@@ -48,6 +68,14 @@ async def list_chits(
         )
         for c in chits
     ]
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
 
 
 @router.post("", response_model=ChitResponse)

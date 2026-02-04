@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FiUserPlus, FiDollarSign, FiCalendar, FiCheck, FiX, FiTrash2 } from 'react-icons/fi';
+import {
+    FiUserPlus, FiDollarSign, FiCalendar, FiTrash2,
+    FiArrowLeft, FiUsers, FiCheck, FiClock
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 
 export default function ChitDetail() {
@@ -16,17 +18,15 @@ export default function ChitDetail() {
     const [members, setMembers] = useState([]);
     const [months, setMonths] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
     const [users, setUsers] = useState([]);
-    const [memberForm, setMemberForm] = useState({
-        user_id: '',
-        slot_number: ''
-    });
 
-    // Auction Modal
+    // Modal states
+    const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
     const [isAuctionModalOpen, setIsAuctionModalOpen] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(null);
+
+    // Form states
+    const [memberForm, setMemberForm] = useState({ user_id: '', slot_number: '' });
     const [auctionForm, setAuctionForm] = useState({
         auction_date: new Date().toISOString().split('T')[0],
         winner_user_id: '',
@@ -63,13 +63,13 @@ export default function ChitDetail() {
         if (users.length > 0) return;
         try {
             const response = await api.get('/users');
-            setUsers(response.data);
+            // Handle paginated response
+            const data = response.data.items || response.data;
+            setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Error fetching users:', error);
         }
     };
-
-    // --- Member Management ---
 
     const handleAddMember = async (e) => {
         e.preventDefault();
@@ -78,14 +78,14 @@ export default function ChitDetail() {
             toast.success('Member added successfully');
             setIsAddMemberModalOpen(false);
             setMemberForm({ user_id: '', slot_number: '' });
-            fetchChitDetails(); // Refresh all
+            fetchChitDetails();
         } catch (error) {
             toast.error(error.response?.data?.detail || 'Failed to add member');
         }
     };
 
     const handleRemoveMember = async (memberId) => {
-        if (!window.confirm('Are you sure? This will remove the member from this chit group.')) return;
+        if (!window.confirm('Remove this member from the group?')) return;
         try {
             await api.delete(`/chits/${id}/members/${memberId}`);
             toast.success('Member removed');
@@ -95,19 +95,17 @@ export default function ChitDetail() {
         }
     };
 
-    // --- Auction Management ---
-
     const openAuctionModal = (month) => {
         setSelectedMonth(month);
         setAuctionForm({
             auction_date: month.auction_date || new Date().toISOString().split('T')[0],
             winner_user_id: month.winner_user_id || '',
             payout_amount: month.payout_amount || '',
-            admin_profit: month.admin_profit || (chit.total_amount * 0.05), // Default 5% commission
-            status: month.status === 'completed' ? 'completed' : 'completed'
+            admin_profit: month.admin_profit || (chit.total_amount * 0.05),
+            status: 'completed'
         });
         setIsAuctionModalOpen(true);
-        fetchUsers(); // Ensure we have users list for winner selection
+        fetchUsers();
     };
 
     const handleAuctionSubmit = async (e) => {
@@ -122,156 +120,394 @@ export default function ChitDetail() {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-[var(--text-muted)]">Loading details...</div>;
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0
+        }).format(amount || 0);
+    };
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-pulse">
+                <div className="skeleton" style={{ height: '2.5rem', width: '8rem', borderRadius: '0.75rem' }} />
+                <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '1rem'
+                }}>
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="skeleton" style={{ height: '7rem', borderRadius: '1rem' }} />
+                    ))}
+                </div>
+                <div className="skeleton" style={{ height: '16rem', borderRadius: '1rem' }} />
+            </div>
+        );
+    }
+
     if (!chit) return null;
 
-    const memberColumns = [
-        { header: 'Slot', accessor: 'slot_number', className: 'w-16 text-center font-bold' },
-        { header: 'Member Name', accessor: 'user_name' },
-        { header: 'Phone', accessor: 'user_phone' },
-        { header: 'Join Date', accessor: (m) => new Date(m.join_date).toLocaleDateString() },
-        {
-            header: 'Actions',
-            accessor: (m) => isAdmin() ? (
-                <button
-                    onClick={() => handleRemoveMember(m.id)}
-                    className="p-1 hover:bg-[var(--danger)]/10 text-[var(--danger)] rounded"
-                >
-                    <FiTrash2 />
-                </button>
-            ) : null,
-            className: 'w-16'
-        }
-    ];
+    const completedMonths = months.filter(m => m.status === 'completed').length;
 
     return (
-        <div className="space-y-8 animate-fade-in">
-            <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mb-4">
-                <span onClick={() => navigate('/chits')} className="cursor-pointer hover:text-[var(--primary)] transition-colors">Chits</span>
-                <span>/</span>
-                <span className="text-[var(--text)] font-semibold">{chit.chit_name}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-fade-in">
+            {/* Back Button */}
+            <button
+                onClick={() => navigate('/chits')}
+                className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors group"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    transition: 'color 0.2s'
+                }}
+            >
+                <div style={{
+                    width: '2rem',
+                    height: '2rem',
+                    borderRadius: '50%',
+                    background: 'var(--surface)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background 0.2s'
+                }}>
+                    <FiArrowLeft />
+                </div>
+                <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>Back to Chits</span>
+            </button>
+
+            {/* Header */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem'
+            }}>
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    flexWrap: 'wrap',
+                    gap: '1rem'
+                }}>
+                    <div>
+                        <h1 style={{
+                            fontSize: 'clamp(1.5rem, 5vw, 2rem)',
+                            fontWeight: 800,
+                            letterSpacing: '-0.025em'
+                        }}>
+                            {chit.chit_name}
+                        </h1>
+                        <p style={{
+                            color: 'var(--text-muted)',
+                            marginTop: '0.25rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }}>
+                            <FiCalendar size={14} />
+                            Started {new Date(chit.start_date).toLocaleDateString('en-IN', {
+                                month: 'long',
+                                year: 'numeric'
+                            })}
+                        </p>
+                    </div>
+                    <span className={`badge ${chit.is_active ? 'badge-success' : 'badge-secondary'}`}>
+                        {chit.is_active ? 'Active' : 'Completed'}
+                    </span>
+                </div>
             </div>
 
-            {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="stat-card group">
-                    <div className="flex flex-col">
-                        <p className="stat-label mb-1">Total Amount</p>
-                        <p className="stat-value text-[var(--primary)] group-hover:scale-105 transition-transform origin-left">
-                            ₹{chit.total_amount.toLocaleString()}
-                        </p>
+            {/* Stats */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '0.75rem'
+            }}>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiDollarSign size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Total Amount</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--primary)' }}>
+                                {formatCurrency(chit.total_amount)}
+                            </p>
+                        </div>
                     </div>
                 </div>
-                <div className="stat-card group">
-                    <div className="flex flex-col">
-                        <p className="stat-label mb-1">Monthly Payment</p>
-                        <p className="stat-value text-[var(--text)] group-hover:scale-105 transition-transform origin-left">
-                            ₹{chit.monthly_amount.toLocaleString()}
-                        </p>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--secondary) 0%, #db2777 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiDollarSign size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Monthly</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800 }}>
+                                {formatCurrency(chit.monthly_amount)}
+                            </p>
+                        </div>
                     </div>
                 </div>
-                <div className="stat-card group">
-                    <div className="flex flex-col">
-                        <p className="stat-label mb-1">Progress</p>
-                        <p className="stat-value text-[var(--text)] group-hover:scale-105 transition-transform origin-left">
-                            {months.filter(m => m.status === 'completed').length} <span className="text-sm text-[var(--text-muted)] font-normal">/ {chit.total_months} mo</span>
-                        </p>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiClock size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Progress</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800 }}>
+                                {completedMonths}/{chit.total_months}
+                            </p>
+                        </div>
                     </div>
                 </div>
-                <div className="stat-card group">
-                    <div className="flex flex-col">
-                        <p className="stat-label mb-1">Members</p>
-                        <p className="stat-value text-[var(--text)] group-hover:scale-105 transition-transform origin-left">
-                            {chit.member_count} <span className="text-sm text-[var(--text-muted)] font-normal">/ {chit.total_months}</span>
-                        </p>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--accent) 0%, #0d9488 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiUsers size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Members</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800 }}>
+                                {chit.member_count}/{chit.total_months}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Members List */}
-                <div className="lg:col-span-1 space-y-4">
-                    <div className="flex justify-between items-center px-1">
-                        <h2 className="text-xl font-bold">Members</h2>
-                        {isAdmin() && (
+            {/* Content Grid */}
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '1.5rem'
+            }} className="content-grid">
+                {/* Members */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FiUsers /> Members
+                        </h2>
+                        {isAdmin() && members.length < chit.total_months && (
                             <button
                                 onClick={() => { setIsAddMemberModalOpen(true); fetchUsers(); }}
-                                className="btn btn-sm bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white border-none gap-2"
-                                disabled={members.length >= chit.total_months}
+                                className="btn btn-sm btn-primary"
                             >
-                                <FiUserPlus /> Add
+                                <FiUserPlus size={16} /> Add
                             </button>
                         )}
                     </div>
-                    <div className="card glass overflow-hidden shadow-xl">
-                        <DataTable
-                            columns={memberColumns}
-                            data={members}
-                            searchable={false}
-                            pageSize={10}
-                        />
+
+                    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                        {members.length === 0 ? (
+                            <div style={{ padding: '2rem', textAlign: 'center' }}>
+                                <FiUsers style={{ margin: '0 auto', color: 'var(--text-dim)', marginBottom: '0.75rem' }} size={32} />
+                                <p style={{ color: 'var(--text-muted)' }}>No members yet</p>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                {members.map((member, index) => (
+                                    <div
+                                        key={member.id}
+                                        className="animate-fade-in"
+                                        style={{
+                                            padding: '1rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.75rem',
+                                            borderTop: index > 0 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none',
+                                            transition: 'background 0.2s',
+                                            animationDelay: `${index * 50}ms`
+                                        }}
+                                    >
+                                        <div style={{
+                                            width: '2.5rem',
+                                            height: '2.5rem',
+                                            borderRadius: '0.75rem',
+                                            background: 'rgba(99, 102, 241, 0.1)',
+                                            color: 'var(--primary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontWeight: 700,
+                                            flexShrink: 0
+                                        }}>
+                                            {member.slot_number}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <p style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.user_name}</p>
+                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{member.user_phone}</p>
+                                        </div>
+                                        {isAdmin() && (
+                                            <button
+                                                onClick={() => handleRemoveMember(member.id)}
+                                                className="btn-icon-sm btn-ghost"
+                                                style={{ color: 'var(--danger)' }}
+                                            >
+                                                <FiTrash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Monthly Auctions */}
-                <div className="lg:col-span-2 space-y-4">
-                    <h2 className="text-xl font-bold px-1">Monthly Auctions</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {months.map(month => (
-                            <div key={month.id} className={`card p-5 group transition-all duration-300 hover:scale-[1.01] hover:shadow-lg ${month.status === 'completed'
-                                ? 'bg-gradient-to-br from-[var(--success)]/10 to-transparent border-[var(--success)]/20 shadow-[var(--success)]/5'
-                                : 'bg-[var(--surface)] border-white/5'
-                                }`}>
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold ${month.status === 'completed' ? 'bg-[var(--success)]/20 text-[var(--success)]' : 'bg-white/10 text-[var(--text-muted)]'}`}>
-                                            {month.month_number}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FiCalendar /> Monthly Auctions
+                    </h2>
+
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                        gap: '1rem'
+                    }}>
+                        {months.map((month, index) => (
+                            <div
+                                key={month.id}
+                                className="card animate-fade-in"
+                                style={{
+                                    padding: '1rem',
+                                    animationDelay: `${index * 30}ms`,
+                                    borderColor: month.status === 'completed' ? 'rgba(16, 185, 129, 0.3)' : undefined,
+                                    background: month.status === 'completed' ? 'rgba(16, 185, 129, 0.05)' : undefined
+                                }}
+                            >
+                                {/* Month Header */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <div style={{
+                                            width: '2rem',
+                                            height: '2rem',
+                                            borderRadius: '0.5rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontWeight: 700,
+                                            fontSize: '0.875rem',
+                                            background: month.status === 'completed' ? 'var(--success)' : 'var(--surface-light)',
+                                            color: month.status === 'completed' ? 'white' : 'var(--text-muted)'
+                                        }}>
+                                            {month.status === 'completed' ? <FiCheck size={16} /> : month.month_number}
                                         </div>
-                                        <span className="font-bold text-lg">Month {month.month_number}</span>
+                                        <span style={{ fontWeight: 600 }}>Month {month.month_number}</span>
                                     </div>
-                                    <span className={`text-[10px] px-2 py-1 rounded-full uppercase tracking-wider font-bold ${month.status === 'completed'
-                                        ? 'bg-[var(--success)] text-white shadow-lg shadow-[var(--success)]/30'
-                                        : 'bg-[var(--surface-light)] text-[var(--text-muted)] border border-white/10'
-                                        }`}>
+                                    <span style={{
+                                        fontSize: '0.625rem',
+                                        padding: '0.25rem 0.5rem',
+                                        borderRadius: '9999px',
+                                        fontWeight: 700,
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.05em',
+                                        background: month.status === 'completed' ? 'rgba(16, 185, 129, 0.2)' : 'var(--surface-light)',
+                                        color: month.status === 'completed' ? 'var(--success)' : 'var(--text-muted)'
+                                    }}>
                                         {month.status}
                                     </span>
                                 </div>
 
+                                {/* Content */}
                                 {month.status === 'completed' ? (
-                                    <div className="space-y-3 text-sm p-3 rounded-xl bg-black/10 border border-white/5">
-                                        <div className="flex justify-between items-center group/item pb-2 border-b border-white/5">
-                                            <span className="text-[var(--text-muted)]">Winner</span>
-                                            <span className="font-bold text-[var(--primary)] flex items-center gap-2">
-                                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary)]"></span>
+                                    <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.5rem',
+                                        fontSize: '0.875rem',
+                                        padding: '0.75rem',
+                                        borderRadius: '0.75rem',
+                                        background: 'rgba(0, 0, 0, 0.2)'
+                                    }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Winner</span>
+                                            <span style={{ fontWeight: 500, color: 'var(--primary)' }}>
                                                 {month.winner_name || 'Unknown'}
                                             </span>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[var(--text-muted)]">Payout</span>
-                                            <span className="font-medium">₹{month.payout_amount?.toLocaleString()}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Payout</span>
+                                            <span style={{ fontWeight: 500 }}>
+                                                {formatCurrency(month.payout_amount)}
+                                            </span>
                                         </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-[var(--text-muted)]">Admin Profit</span>
-                                            <span className="font-medium text-[var(--success)]">+₹{month.admin_profit?.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center pt-2 mt-1 border-t border-white/5">
-                                            <span className="text-[var(--text-muted)] font-medium">Total Collected</span>
-                                            <span className="font-bold text-lg">₹{month.total_collected?.toLocaleString()}</span>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Profit</span>
+                                            <span style={{ fontWeight: 500, color: 'var(--success)' }}>
+                                                +{formatCurrency(month.admin_profit)}
+                                            </span>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="py-6 text-center">
+                                    <div style={{ textAlign: 'center', padding: '1rem 0' }}>
                                         {isAdmin() ? (
                                             <button
                                                 onClick={() => openAuctionModal(month)}
-                                                className="btn btn-primary w-full shadow-lg shadow-[var(--primary)]/20"
+                                                className="btn btn-primary btn-sm"
+                                                style={{ width: '100%' }}
                                             >
                                                 Record Auction
                                             </button>
                                         ) : (
-                                            <span className="text-[var(--text-muted)] text-sm italic flex items-center justify-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-[var(--warning)] animate-pulse"></div>
-                                                Auction pending
+                                            <span style={{
+                                                color: 'var(--text-muted)',
+                                                fontSize: '0.875rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.5rem'
+                                            }}>
+                                                <div style={{
+                                                    width: '0.5rem',
+                                                    height: '0.5rem',
+                                                    borderRadius: '50%',
+                                                    background: 'var(--warning)'
+                                                }} className="animate-pulse" />
+                                                Pending
                                             </span>
                                         )}
                                     </div>
@@ -282,13 +518,27 @@ export default function ChitDetail() {
                 </div>
             </div>
 
-            {/* Modals */}
-            <Modal isOpen={isAddMemberModalOpen} onClose={() => setIsAddMemberModalOpen(false)} title="Add Member">
-                <form onSubmit={handleAddMember} className="space-y-4">
-                    <div>
-                        <label className="label">Select User</label>
+            {/* Add Member Modal */}
+            <Modal
+                isOpen={isAddMemberModalOpen}
+                onClose={() => setIsAddMemberModalOpen(false)}
+                title="Add Member"
+                footer={
+                    <>
+                        <button onClick={() => setIsAddMemberModalOpen(false)} className="btn btn-secondary">
+                            Cancel
+                        </button>
+                        <button onClick={handleAddMember} className="btn btn-primary">
+                            Add Member
+                        </button>
+                    </>
+                }
+            >
+                <form onSubmit={handleAddMember} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className="input-group">
+                        <label>Select User *</label>
                         <select
-                            className="input w-full"
+                            className="input"
                             required
                             value={memberForm.user_id}
                             onChange={(e) => setMemberForm({ ...memberForm, user_id: e.target.value })}
@@ -299,11 +549,11 @@ export default function ChitDetail() {
                             ))}
                         </select>
                     </div>
-                    <div>
-                        <label className="label">Slot Number</label>
+                    <div className="input-group">
+                        <label>Slot Number *</label>
                         <input
                             type="number"
-                            className="input w-full"
+                            className="input"
                             required
                             min="1"
                             max={chit.total_months}
@@ -312,67 +562,85 @@ export default function ChitDetail() {
                             onChange={(e) => setMemberForm({ ...memberForm, slot_number: e.target.value })}
                         />
                     </div>
-                    <div className="flex justify-end gap-2 pt-4">
-                        <button type="button" onClick={() => setIsAddMemberModalOpen(false)} className="btn btn-ghost">Cancel</button>
-                        <button type="submit" className="btn btn-primary">Add Member</button>
-                    </div>
                 </form>
             </Modal>
 
-            <Modal isOpen={isAuctionModalOpen} onClose={() => setIsAuctionModalOpen(false)} title={`Auction for Month ${selectedMonth?.month_number}`}>
-                <form onSubmit={handleAuctionSubmit} className="space-y-4">
-                    <div>
-                        <label className="label">Auction Date</label>
+            {/* Auction Modal */}
+            <Modal
+                isOpen={isAuctionModalOpen}
+                onClose={() => setIsAuctionModalOpen(false)}
+                title={`Auction - Month ${selectedMonth?.month_number}`}
+                footer={
+                    <>
+                        <button onClick={() => setIsAuctionModalOpen(false)} className="btn btn-secondary">
+                            Cancel
+                        </button>
+                        <button onClick={handleAuctionSubmit} className="btn btn-primary">
+                            Save Auction
+                        </button>
+                    </>
+                }
+            >
+                <form onSubmit={handleAuctionSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className="input-group">
+                        <label>Auction Date *</label>
                         <input
                             type="date"
-                            className="input w-full"
+                            className="input"
                             required
                             value={auctionForm.auction_date}
                             onChange={(e) => setAuctionForm({ ...auctionForm, auction_date: e.target.value })}
                         />
                     </div>
-                    <div>
-                        <label className="label">Winner</label>
+                    <div className="input-group">
+                        <label>Winner *</label>
                         <select
-                            className="input w-full"
+                            className="input"
                             required
                             value={auctionForm.winner_user_id}
                             onChange={(e) => setAuctionForm({ ...auctionForm, winner_user_id: e.target.value })}
                         >
                             <option value="">Select winner...</option>
                             {members.map(m => (
-                                <option key={m.user_id} value={m.user_id}>{m.user_name} (Slot {m.slot_number})</option>
+                                <option key={m.user_id} value={m.user_id}>
+                                    {m.user_name} (Slot {m.slot_number})
+                                </option>
                             ))}
                         </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="label">Payout Amount (₹)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                        <div className="input-group">
+                            <label>Payout Amount (₹) *</label>
                             <input
                                 type="number"
-                                className="input w-full"
+                                className="input"
                                 required
                                 value={auctionForm.payout_amount}
                                 onChange={(e) => setAuctionForm({ ...auctionForm, payout_amount: e.target.value })}
                             />
                         </div>
-                        <div>
-                            <label className="label">Admin Profit (₹)</label>
+                        <div className="input-group">
+                            <label>Admin Profit (₹) *</label>
                             <input
                                 type="number"
-                                className="input w-full"
+                                className="input"
                                 required
                                 value={auctionForm.admin_profit}
                                 onChange={(e) => setAuctionForm({ ...auctionForm, admin_profit: e.target.value })}
                             />
                         </div>
                     </div>
-                    <div className="flex justify-end gap-2 pt-4">
-                        <button type="button" onClick={() => setIsAuctionModalOpen(false)} className="btn btn-ghost">Cancel</button>
-                        <button type="submit" className="btn btn-primary">Save Auction</button>
-                    </div>
                 </form>
             </Modal>
+
+            {/* Responsive Styles for Content Grid */}
+            <style>{`
+                @media (min-width: 1024px) {
+                    .content-grid {
+                        grid-template-columns: 1fr 2fr !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

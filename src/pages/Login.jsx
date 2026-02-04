@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiPhone, FiLock, FiLogIn } from 'react-icons/fi';
+import { FiPhone, FiLock, FiArrowRight, FiEye, FiEyeOff, FiDollarSign } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function Login() {
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const { login } = useAuth();
     const navigate = useNavigate();
@@ -33,97 +34,224 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[var(--background)] via-[#0f172a] to-[#020617] relative overflow-hidden">
-            {/* Background Orbs */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-                <div className="absolute -top-[20%] -right-[10%] w-[700px] h-[700px] bg-[var(--primary)] rounded-full mix-blend-multiply filter blur-[100px] opacity-20 animate-pulse"></div>
-                <div className="absolute top-[30%] -left-[10%] w-[600px] h-[600px] bg-[var(--secondary)] rounded-full mix-blend-multiply filter blur-[100px] opacity-15 animate-pulse" style={{ animationDelay: '2s' }}></div>
-                <div className="absolute -bottom-[20%] right-[20%] w-[500px] h-[500px] bg-[var(--accent)] rounded-full mix-blend-multiply filter blur-[100px] opacity-20 animate-pulse" style={{ animationDelay: '4s' }}></div>
+        <div
+            style={{
+                minHeight: '100vh',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1rem',
+                position: 'relative',
+                overflow: 'hidden',
+                background: 'var(--background)'
+            }}
+        >
+            {/* Animated Background Orbs */}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+                <div
+                    className="animate-float"
+                    style={{
+                        position: 'absolute',
+                        width: '600px',
+                        height: '600px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%)',
+                        top: '-20%',
+                        right: '-10%',
+                        animationDuration: '8s'
+                    }}
+                />
+                <div
+                    className="animate-float"
+                    style={{
+                        position: 'absolute',
+                        width: '500px',
+                        height: '500px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, transparent 70%)',
+                        top: '30%',
+                        left: '-15%',
+                        animationDuration: '10s',
+                        animationDelay: '2s'
+                    }}
+                />
+                <div
+                    className="animate-float"
+                    style={{
+                        position: 'absolute',
+                        width: '400px',
+                        height: '400px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(20, 184, 166, 0.15) 0%, transparent 70%)',
+                        bottom: '-10%',
+                        right: '20%',
+                        animationDuration: '12s',
+                        animationDelay: '4s'
+                    }}
+                />
             </div>
 
-            <div className="relative w-full max-w-md z-10">
+            {/* Login Content */}
+            <div style={{ position: 'relative', width: '100%', maxWidth: '420px', zIndex: 10 }}>
                 {/* Logo Area */}
-                <div className="text-center mb-10 animate-fade-in">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] mb-6 shadow-2xl shadow-[var(--primary)]/30">
-                        <FiLogIn className="text-3xl text-white" />
+                <div className="animate-fade-in" style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                    <div
+                        className="animate-glow"
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '1.5rem',
+                            marginBottom: '1.5rem',
+                            background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
+                            boxShadow: '0 8px 32px var(--primary-glow)'
+                        }}
+                    >
+                        <FiDollarSign size={40} color="white" />
                     </div>
-                    <h1 className="text-5xl font-extrabold tracking-tight mb-3">
-                        <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-gray-400">Chit</span>
-                        <span className="text-[var(--primary)]">Funds</span>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>
+                        <span className="gradient-text">Chit</span>
+                        <span style={{ color: 'var(--text)' }}>Funds</span>
                     </h1>
-                    <p className="text-[var(--text-muted)] text-lg">Secure Management System</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>
+                        Secure Management System
+                    </p>
                 </div>
 
                 {/* Login Card */}
-                <div className="card glass shadow-2xl animate-slide-in">
-                    <div className="card-body p-8">
-                        <h2 className="text-2xl font-bold text-center mb-8">Sign In</h2>
+                <div className="card glass animate-slide-up" style={{ animationDelay: '100ms' }}>
+                    <div className="card-body" style={{ padding: '2rem' }}>
+                        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '1.5rem' }}>
+                            Welcome Back
+                        </h2>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             {/* Phone */}
                             <div className="input-group">
-                                <label className="text-sm font-medium ml-1">Phone Number</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <FiPhone className="text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
-                                    </div>
+                                <label>Phone Number</label>
+                                <div style={{ position: 'relative' }}>
+                                    <FiPhone
+                                        style={{
+                                            position: 'absolute',
+                                            left: '1rem',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: 'var(--text-muted)'
+                                        }}
+                                    />
                                     <input
                                         type="tel"
                                         value={phone}
                                         onChange={(e) => setPhone(e.target.value)}
-                                        placeholder="99999 99999"
-                                        className="input pl-11 py-3 text-lg bg-black/20 focus:bg-black/30 border-white/10"
+                                        placeholder="Enter phone number"
+                                        className="input"
+                                        style={{ paddingLeft: '3rem' }}
+                                        autoComplete="tel"
                                     />
                                 </div>
                             </div>
 
                             {/* Password */}
                             <div className="input-group">
-                                <label className="text-sm font-medium ml-1">Password</label>
-                                <div className="relative group">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <FiLock className="text-[var(--text-muted)] group-focus-within:text-[var(--primary)] transition-colors" />
-                                    </div>
+                                <label>Password</label>
+                                <div style={{ position: 'relative' }}>
+                                    <FiLock
+                                        style={{
+                                            position: 'absolute',
+                                            left: '1rem',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: 'var(--text-muted)'
+                                        }}
+                                    />
                                     <input
-                                        type="password"
+                                        type={showPassword ? 'text' : 'password'}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="input pl-11 py-3 text-lg bg-black/20 focus:bg-black/30 border-white/10"
+                                        placeholder="Enter password"
+                                        className="input"
+                                        style={{ paddingLeft: '3rem', paddingRight: '3rem' }}
+                                        autoComplete="current-password"
                                     />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        style={{
+                                            position: 'absolute',
+                                            right: '1rem',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: 'var(--text-muted)',
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            padding: 0,
+                                            display: 'flex'
+                                        }}
+                                    >
+                                        {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                                    </button>
                                 </div>
                             </div>
 
-                            {/* Submit */}
+                            {/* Submit Button */}
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="btn btn-primary w-full py-4 text-lg shadow-xl shadow-[var(--primary)]/20 hover:shadow-[var(--primary)]/40 transition-all active:scale-[0.98]"
+                                className="btn btn-primary btn-lg"
+                                style={{ width: '100%' }}
                             >
                                 {loading ? (
-                                    <div className="spinner w-6 h-6 border-white/30 border-t-white"></div>
+                                    <div className="spinner spinner-sm" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
                                 ) : (
                                     <>
-                                        Sign In <FiArrowRight />
+                                        Sign In
+                                        <FiArrowRight />
                                     </>
                                 )}
                             </button>
                         </form>
 
                         {/* Demo Credentials */}
-                        <div className="mt-8 p-5 rounded-xl bg-black/30 border border-white/5 text-sm backdrop-blur-sm">
-                            <p className="text-[var(--text-muted)] mb-3 font-medium uppercase tracking-wider text-xs">Demo Access</p>
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-[var(--text-dim)]">Phone:</span>
-                                <code className="text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-1 rounded">9999999999</code>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-[var(--text-dim)]">Password:</span>
-                                <code className="text-[var(--primary)] bg-[var(--primary)]/10 px-2 py-1 rounded">admin123</code>
+                        <div
+                            style={{
+                                marginTop: '1.5rem',
+                                padding: '1rem',
+                                borderRadius: '0.75rem',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                background: 'rgba(0, 0, 0, 0.2)'
+                            }}
+                        >
+                            <p style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '0.75rem' }}>
+                                Demo Credentials
+                            </p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--text-dim)' }}>Phone:</span>
+                                    <code style={{ color: 'var(--primary)', background: 'rgba(99, 102, 241, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                        9999999999
+                                    </code>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: 'var(--text-dim)' }}>Password:</span>
+                                    <code style={{ color: 'var(--primary)', background: 'rgba(99, 102, 241, 0.1)', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                                        admin123
+                                    </code>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                {/* Footer */}
+                <p
+                    className="animate-fade-in"
+                    style={{ textAlign: 'center', color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '1.5rem', animationDelay: '300ms' }}
+                >
+                    Secure • Reliable • Trusted
+                </p>
             </div>
         </div>
     );

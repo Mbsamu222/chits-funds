@@ -11,6 +11,7 @@ import Chits from './pages/Chits';
 import ChitDetail from './pages/ChitDetail';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
+import Accounts from './pages/Accounts';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="chits" element={<Chits />} />
         <Route path="chits/:id" element={<ChitDetail />} />
         <Route path="payments" element={<Payments />} />
+        <Route path="accounts" element={<Accounts />} />
         <Route path="reports" element={<Reports />} />
       </Route>
 

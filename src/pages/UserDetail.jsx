@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import PaymentStatusGrid from '../components/PaymentStatusGrid';
-import { FiArrowLeft, FiPhone, FiMail, FiMapPin, FiGrid, FiDollarSign } from 'react-icons/fi';
+import {
+    FiArrowLeft, FiPhone, FiMail, FiMapPin,
+    FiGrid, FiDollarSign, FiCalendar, FiTrendingUp
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function UserDetail() {
@@ -32,13 +35,20 @@ export default function UserDetail() {
             style: 'currency',
             currency: 'INR',
             maximumFractionDigits: 0
-        }).format(amount);
+        }).format(amount || 0);
     };
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center min-h-[60vh]">
-                <div className="spinner"></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-pulse">
+                <div className="skeleton" style={{ height: '2.5rem', width: '8rem', borderRadius: '0.75rem' }} />
+                <div className="skeleton" style={{ height: '10rem', borderRadius: '1rem' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                    {[1, 2, 3].map(i => (
+                        <div key={i} className="skeleton" style={{ height: '7rem', borderRadius: '1rem' }} />
+                    ))}
+                </div>
+                <div className="skeleton" style={{ height: '16rem', borderRadius: '1rem' }} />
             </div>
         );
     }
@@ -48,176 +58,360 @@ export default function UserDetail() {
     const { user, chits, total_paid, total_balance, pending_months } = data;
 
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-fade-in">
             {/* Back Button */}
             <button
                 onClick={() => navigate('/users')}
-                className="flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--primary)] transition-colors group mb-6"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    transition: 'color 0.2s'
+                }}
             >
-                <div className="w-8 h-8 rounded-full bg-[var(--surface)] flex items-center justify-center group-hover:bg-[var(--primary)]/10 transition-colors">
-                    <FiArrowLeft className="group-hover:-translate-x-1 transition-transform" />
+                <div style={{
+                    width: '2rem',
+                    height: '2rem',
+                    borderRadius: '50%',
+                    background: 'var(--surface)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background 0.2s'
+                }}>
+                    <FiArrowLeft />
                 </div>
-                <span className="font-medium">Back to Users</span>
+                <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>Back to Users</span>
             </button>
 
-            {/* User Info Card */}
-            <div className="card glass p-8 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-32 bg-[var(--primary)]/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-[var(--primary)]/10 transition-colors duration-500"></div>
+            {/* User Header Card */}
+            <div className="card" style={{ padding: '1.5rem', position: 'relative', overflow: 'hidden' }}>
+                {/* Decorative gradient */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        right: '-5rem',
+                        top: '-5rem',
+                        width: '16rem',
+                        height: '16rem',
+                        opacity: 0.3,
+                        pointerEvents: 'none',
+                        background: 'radial-gradient(circle, var(--primary) 0%, transparent 70%)'
+                    }}
+                />
 
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+                <div style={{
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.5rem'
+                }} className="user-header-content">
                     {/* Avatar */}
-                    <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[var(--primary)] to-[var(--secondary)] flex items-center justify-center text-white text-4xl font-extrabold shadow-2xl shadow-[var(--primary)]/30 ring-4 ring-white/5">
+                    <div className="avatar avatar-xl avatar-gradient" style={{
+                        boxShadow: '0 0 0 4px rgba(255, 255, 255, 0.1)',
+                        alignSelf: 'flex-start'
+                    }}>
                         {user.name.charAt(0).toUpperCase()}
                     </div>
 
                     {/* Info */}
-                    <div className="flex-1 space-y-4">
-                        <div className="flex flex-wrap items-center gap-4">
-                            <h1 className="text-4xl font-extrabold tracking-tight">{user.name}</h1>
-                            <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wide border ${user.is_active
-                                ? 'bg-[var(--success)]/10 text-[var(--success)] border-[var(--success)]/20'
-                                : 'bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/20'
-                                }`}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem' }}>
+                            <h1 style={{
+                                fontSize: 'clamp(1.5rem, 5vw, 2rem)',
+                                fontWeight: 800,
+                                letterSpacing: '-0.025em'
+                            }}>
+                                {user.name}
+                            </h1>
+                            <span className={`badge ${user.is_active ? 'badge-success' : 'badge-danger'}`}>
                                 {user.is_active ? 'Active' : 'Inactive'}
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-base">
-                            <div className="flex items-center gap-3 text-[var(--text-muted)]">
-                                <div className="w-10 h-10 rounded-xl bg-[var(--surface-light)] flex items-center justify-center text-[var(--primary)]">
-                                    <FiPhone size={20} />
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.875rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                                <div style={{
+                                    width: '2rem',
+                                    height: '2rem',
+                                    borderRadius: '0.5rem',
+                                    background: 'var(--surface-light)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--primary)',
+                                    flexShrink: 0
+                                }}>
+                                    <FiPhone size={16} />
                                 </div>
-                                <span className="font-medium text-[var(--text)]">{user.phone}</span>
+                                <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user.phone}</span>
                             </div>
                             {user.email && (
-                                <div className="flex items-center gap-3 text-[var(--text-muted)]">
-                                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-light)] flex items-center justify-center text-[var(--primary)]">
-                                        <FiMail size={20} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+                                    <div style={{
+                                        width: '2rem',
+                                        height: '2rem',
+                                        borderRadius: '0.5rem',
+                                        background: 'var(--surface-light)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'var(--primary)',
+                                        flexShrink: 0
+                                    }}>
+                                        <FiMail size={16} />
                                     </div>
-                                    <span className="font-medium text-[var(--text)]">{user.email}</span>
-                                </div>
-                            )}
-                            {user.address && (
-                                <div className="flex items-center gap-3 text-[var(--text-muted)] col-span-full lg:col-span-1">
-                                    <div className="w-10 h-10 rounded-xl bg-[var(--surface-light)] flex items-center justify-center text-[var(--primary)]">
-                                        <FiMapPin size={20} />
-                                    </div>
-                                    <span className="font-medium text-[var(--text)]">{user.address}</span>
+                                    <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user.email}</span>
                                 </div>
                             )}
                         </div>
+
+                        {user.address && (
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                                <div style={{
+                                    width: '2rem',
+                                    height: '2rem',
+                                    borderRadius: '0.5rem',
+                                    background: 'var(--surface-light)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'var(--primary)',
+                                    flexShrink: 0
+                                }}>
+                                    <FiMapPin size={16} />
+                                </div>
+                                <span style={{ fontWeight: 500, color: 'var(--text)' }}>{user.address}</span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
             {/* Summary Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--success)] to-emerald-600 text-white shadow-lg shadow-[var(--success)]/30 group-hover:scale-110 transition-transform duration-300">
-                            <FiDollarSign size={24} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }} className="stats-grid">
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiDollarSign size={20} color="white" />
                         </div>
-                        <div>
-                            <p className="stat-label mb-1">Total Paid</p>
-                            <p className="stat-value text-[var(--success)]">{formatCurrency(total_paid)}</p>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Total Paid</p>
+                            <p style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--success)' }}>
+                                {formatCurrency(total_paid)}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--warning)] to-orange-500 text-white shadow-lg shadow-[var(--warning)]/30 group-hover:scale-110 transition-transform duration-300">
-                            <FiDollarSign size={24} />
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--warning) 0%, #ea580c 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiTrendingUp size={20} color="white" />
                         </div>
-                        <div>
-                            <p className="stat-label mb-1">Outstanding Balance</p>
-                            <p className="stat-value text-[var(--warning)]">{formatCurrency(total_balance)}</p>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Outstanding</p>
+                            <p style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--warning)' }}>
+                                {formatCurrency(total_balance)}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-white shadow-lg shadow-[var(--primary)]/30 group-hover:scale-110 transition-transform duration-300">
-                            <FiGrid size={24} />
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '0.75rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%)',
+                            flexShrink: 0
+                        }}>
+                            <FiCalendar size={20} color="white" />
                         </div>
-                        <div>
-                            <p className="stat-label mb-1">Pending Months</p>
-                            <p className="stat-value text-[var(--text)]">{pending_months}</p>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Pending Months</p>
+                            <p style={{ fontSize: '1.125rem', fontWeight: 800 }}>{pending_months}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Chits */}
-            <div className="space-y-6">
-                <h2 className="text-2xl font-bold tracking-tight">Joined Groups <span className="text-[var(--text-muted)] text-lg font-normal">({chits.length})</span></h2>
+            {/* Chits Section */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h2 style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                }}>
+                    <FiGrid /> Joined Groups
+                    <span style={{ color: 'var(--text-muted)', fontSize: '1rem', fontWeight: 400 }}>
+                        ({chits.length})
+                    </span>
+                </h2>
 
                 {chits.length === 0 ? (
-                    <div className="card glass p-12 flex flex-col items-center justify-center text-center space-y-4">
-                        <div className="w-16 h-16 rounded-full bg-[var(--surface-light)] flex items-center justify-center text-[var(--text-muted)]">
+                    <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+                        <div style={{
+                            width: '4rem',
+                            height: '4rem',
+                            margin: '0 auto 1rem',
+                            borderRadius: '50%',
+                            background: 'var(--surface-light)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-dim)'
+                        }}>
                             <FiGrid size={32} />
                         </div>
-                        <div>
-                            <h3 className="text-lg font-semibold">No Groups Joined</h3>
-                            <p className="text-[var(--text-muted)]">This user hasn't joined any chit groups yet.</p>
-                        </div>
+                        <h3 style={{ fontWeight: 600, marginBottom: '0.25rem' }}>No Groups Joined</h3>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
+                            This user hasn't joined any chit groups yet.
+                        </p>
                     </div>
                 ) : (
-                    <div className="space-y-6">
-                        {chits.map((chit) => (
-                            <div key={chit.chit_id} className="card glass overflow-hidden group hover:border-[var(--primary)]/30 transition-all duration-300">
-                                <div className="p-6 border-b border-white/5 bg-gradient-to-r from-[var(--surface)] to-transparent">
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {chits.map((chit, index) => (
+                            <div
+                                key={chit.chit_id}
+                                className="card animate-fade-in"
+                                style={{ overflow: 'hidden', animationDelay: `${index * 100}ms` }}
+                            >
+                                {/* Chit Header */}
+                                <div style={{
+                                    padding: '1rem',
+                                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                                    background: 'linear-gradient(90deg, var(--surface) 0%, transparent 100%)'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '1rem'
+                                    }} className="chit-header">
                                         <div>
-                                            <h3 className="font-bold text-xl group-hover:text-[var(--primary)] transition-colors">{chit.chit_name}</h3>
-                                            <p className="text-sm text-[var(--text-muted)] mt-1 flex items-center gap-2">
-                                                <span className="bg-[var(--primary)]/10 text-[var(--primary)] px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider">Slot #{chit.slot_number}</span>
+                                            <h3 style={{ fontWeight: 700, fontSize: '1.125rem' }}>{chit.chit_name}</h3>
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.75rem',
+                                                marginTop: '0.25rem',
+                                                fontSize: '0.875rem',
+                                                color: 'var(--text-muted)'
+                                            }}>
+                                                <span style={{
+                                                    background: 'rgba(99, 102, 241, 0.1)',
+                                                    color: 'var(--primary)',
+                                                    padding: '0.125rem 0.5rem',
+                                                    borderRadius: '0.25rem',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 700,
+                                                    textTransform: 'uppercase'
+                                                }}>
+                                                    Slot #{chit.slot_number}
+                                                </span>
                                                 <span>•</span>
-                                                <span className="text-[var(--text)] font-medium">{formatCurrency(chit.monthly_amount)}/month</span>
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-4 text-sm bg-black/20 p-2 rounded-lg border border-white/5">
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-[var(--text-muted)] text-xs uppercase tracking-wider">Paid</span>
-                                                <span className="text-[var(--success)] font-bold">{formatCurrency(chit.total_paid)}</span>
+                                                <span style={{ fontWeight: 500, color: 'var(--text)' }}>
+                                                    {formatCurrency(chit.monthly_amount)}/mo
+                                                </span>
                                             </div>
-                                            <div className="w-px h-8 bg-white/10"></div>
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-[var(--text-muted)] text-xs uppercase tracking-wider">Balance</span>
-                                                <span className="text-[var(--warning)] font-bold">{formatCurrency(chit.balance)}</span>
+                                        </div>
+
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '1rem',
+                                            padding: '0.75rem',
+                                            borderRadius: '0.75rem',
+                                            background: 'rgba(0, 0, 0, 0.2)'
+                                        }}>
+                                            <div style={{ textAlign: 'center', flex: 1 }}>
+                                                <p style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Paid</p>
+                                                <p style={{ fontWeight: 700, color: 'var(--success)' }}>
+                                                    {formatCurrency(chit.total_paid)}
+                                                </p>
+                                            </div>
+                                            <div style={{ width: '1px', height: '2rem', background: 'rgba(255, 255, 255, 0.1)' }} />
+                                            <div style={{ textAlign: 'center', flex: 1 }}>
+                                                <p style={{ fontSize: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>Balance</p>
+                                                <p style={{ fontWeight: 700, color: 'var(--warning)' }}>
+                                                    {formatCurrency(chit.balance)}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="p-6 space-y-6">
-                                    <div>
-                                        <p className="text-sm font-medium text-[var(--text-muted)] mb-3 flex items-center gap-2">
-                                            <FiCalendar /> Payment History ({chit.total_months} months)
-                                        </p>
-                                        <div className="p-4 rounded-xl bg-black/20 border border-white/5">
-                                            <PaymentStatusGrid
-                                                months={chit.month_status}
-                                                onMonthClick={(month) => {
-                                                    if (!month.is_paid) {
-                                                        navigate(`/payments?user=${id}&chit=${chit.chit_id}`);
-                                                    }
-                                                }}
-                                            />
-                                        </div>
+                                {/* Payment Grid */}
+                                <div style={{ padding: '1rem' }}>
+                                    <p style={{
+                                        fontSize: '0.875rem',
+                                        fontWeight: 500,
+                                        color: 'var(--text-muted)',
+                                        marginBottom: '0.75rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}>
+                                        <FiCalendar size={14} /> Payment History ({chit.total_months} months)
+                                    </p>
+                                    <div style={{
+                                        padding: '1rem',
+                                        borderRadius: '0.75rem',
+                                        background: 'rgba(0, 0, 0, 0.2)',
+                                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                                    }}>
+                                        <PaymentStatusGrid
+                                            months={chit.month_status}
+                                            onMonthClick={(month) => {
+                                                if (!month.is_paid) {
+                                                    navigate(`/payments?user=${id}&chit=${chit.chit_id}`);
+                                                }
+                                            }}
+                                        />
                                     </div>
 
                                     {/* Progress Bar */}
-                                    <div>
-                                        <div className="flex justify-between text-xs font-medium text-[var(--text-muted)] mb-2">
-                                            <span>Payment Progress</span>
-                                            <span className="text-[var(--text)]">{Math.round((chit.total_paid / chit.total_amount) * 100)}%</span>
+                                    <div style={{ marginTop: '1rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
+                                            <span style={{ color: 'var(--text-muted)' }}>Payment Progress</span>
+                                            <span style={{ fontWeight: 500 }}>
+                                                {Math.round((chit.total_paid / chit.total_amount) * 100)}%
+                                            </span>
                                         </div>
-                                        <div className="h-3 bg-[var(--surface-light)] rounded-full overflow-hidden shadow-inner">
+                                        <div className="progress">
                                             <div
-                                                className="h-full bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] rounded-full transition-all duration-1000 ease-out shadow-lg shadow-[var(--primary)]/20"
-                                                style={{ width: `${Math.min(100, (chit.total_paid / chit.total_amount) * 100)}%` }}
+                                                className="progress-bar"
+                                                style={{
+                                                    width: `${Math.min(100, (chit.total_paid / chit.total_amount) * 100)}%`
+                                                }}
                                             />
                                         </div>
                                     </div>
@@ -227,6 +421,29 @@ export default function UserDetail() {
                     </div>
                 )}
             </div>
+
+            {/* Responsive Styles */}
+            <style>{`
+                @media (min-width: 640px) {
+                    .user-header-content {
+                        flex-direction: row !important;
+                        align-items: center !important;
+                    }
+                    .user-header-content .avatar {
+                        align-self: center !important;
+                    }
+                    .chit-header {
+                        flex-direction: row !important;
+                        align-items: center !important;
+                        justify-content: space-between !important;
+                    }
+                }
+                @media (max-width: 639px) {
+                    .stats-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

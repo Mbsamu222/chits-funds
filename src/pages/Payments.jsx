@@ -1,48 +1,40 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
-import { FiPlus, FiDollarSign, FiCreditCard, FiUpload, FiImage } from 'react-icons/fi';
+import {
+    FiPlus, FiDollarSign, FiSearch, FiFilter,
+    FiCamera, FiX, FiCheck, FiCreditCard, FiSmartphone
+} from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 export default function Payments() {
     const { isAdmin } = useAuth();
-    const [searchParams] = useSearchParams();
     const [payments, setPayments] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [showModal, setShowModal] = useState(false);
-    const [chits, setChits] = useState([]);
     const [users, setUsers] = useState([]);
-    const [chitMonths, setChitMonths] = useState([]);
+    const [chits, setChits] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchValue, setSearchValue] = useState('');
+    const [showModal, setShowModal] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [filterMode, setFilterMode] = useState('all');
+
     const [formData, setFormData] = useState({
-        user_id: searchParams.get('user') || '',
-        chit_id: searchParams.get('chit') || '',
-        chit_month_id: '',
+        user_id: '',
+        chit_id: '',
+        month_number: '',
         amount_paid: '',
         payment_mode: 'cash',
         notes: ''
     });
+    const [screenshot, setScreenshot] = useState(null);
 
     useEffect(() => {
         fetchPayments();
-        fetchChits();
         fetchUsers();
+        fetchChits();
     }, []);
-
-    useEffect(() => {
-        if (formData.chit_id) {
-            fetchChitMonths(formData.chit_id);
-        }
-    }, [formData.chit_id]);
-
-    // Open modal if URL has params
-    useEffect(() => {
-        if (searchParams.get('user') && searchParams.get('chit')) {
-            setShowModal(true);
-        }
-    }, [searchParams]);
 
     const fetchPayments = async () => {
         try {
@@ -55,54 +47,58 @@ export default function Payments() {
         }
     };
 
-    const fetchChits = async () => {
-        try {
-            const response = await api.get('/chits');
-            setChits(response.data);
-        } catch (error) {
-            console.error('Failed to fetch chits');
-        }
-    };
-
     const fetchUsers = async () => {
         try {
             const response = await api.get('/users');
-            setUsers(response.data);
+            // Handle paginated response
+            const data = response.data.items || response.data;
+            setUsers(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Failed to fetch users');
         }
     };
 
-    const fetchChitMonths = async (chitId) => {
+    const fetchChits = async () => {
         try {
-            const response = await api.get(`/chits/${chitId}/months`);
-            setChitMonths(response.data.months);
-
-            // Also set default amount from chit
-            const chit = chits.find(s => s.id === parseInt(chitId));
-            if (chit && !formData.amount_paid) {
-                setFormData(prev => ({ ...prev, amount_paid: chit.monthly_amount }));
-            }
+            const response = await api.get('/chits');
+            // Handle paginated response
+            const data = response.data.items || response.data;
+            setChits(Array.isArray(data) ? data : []);
         } catch (error) {
-            console.error('Failed to fetch chit months');
+            console.error('Failed to fetch chits');
         }
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+
         try {
-            await api.post('/payments', {
-                ...formData,
-                user_id: parseInt(formData.user_id),
-                chit_id: parseInt(formData.chit_id),
-                chit_month_id: formData.chit_month_id ? parseInt(formData.chit_month_id) : null,
-                amount_paid: parseFloat(formData.amount_paid)
+            const data = new FormData();
+            data.append('user_id', formData.user_id);
+            data.append('chit_id', formData.chit_id);
+            data.append('month_number', formData.month_number);
+            data.append('amount_paid', formData.amount_paid);
+            data.append('payment_mode', formData.payment_mode);
+            data.append('notes', formData.notes);
+
+            if (screenshot) {
+                data.append('screenshot', screenshot);
+            }
+
+            await api.post('/payments', data, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
+
             toast.success('Payment recorded successfully');
             setShowModal(false);
             resetForm();
             fetchPayments();
         } catch (error) {
-            toast.error(error.response?.data?.detail || 'Failed to record payment');
+            const message = error.response?.data?.detail || 'Failed to record payment';
+            toast.error(message);
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -110,11 +106,12 @@ export default function Payments() {
         setFormData({
             user_id: '',
             chit_id: '',
-            chit_month_id: '',
+            month_number: '',
             amount_paid: '',
             payment_mode: 'cash',
             notes: ''
         });
+        setScreenshot(null);
     };
 
     const formatCurrency = (amount) => {
@@ -122,17 +119,33 @@ export default function Payments() {
             style: 'currency',
             currency: 'INR',
             maximumFractionDigits: 0
-        }).format(amount);
+        }).format(amount || 0);
     };
+
+    const filteredPayments = payments.filter(p => {
+        const matchesSearch = p.user_name?.toLowerCase().includes(searchValue.toLowerCase()) ||
+            p.chit_name?.toLowerCase().includes(searchValue.toLowerCase());
+        const matchesMode = filterMode === 'all' || p.payment_mode === filterMode;
+        return matchesSearch && matchesMode;
+    });
+
+    const totalPaid = filteredPayments.reduce((sum, p) => sum + p.amount_paid, 0);
+    const cashPayments = payments.filter(p => p.payment_mode === 'cash');
+    const gpayPayments = payments.filter(p => p.payment_mode === 'gpay');
 
     const columns = [
         {
             key: 'user',
             label: 'User',
             render: (row) => (
-                <div>
-                    <p className="font-medium">{row.user_name}</p>
-                    <p className="text-xs text-[var(--text-muted)]">{row.chit_name}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div className="avatar avatar-sm avatar-gradient">
+                        {row.user_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 500, fontSize: '0.875rem' }}>{row.user_name}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.chit_name}</p>
+                    </div>
                 </div>
             )
         },
@@ -140,7 +153,7 @@ export default function Payments() {
             key: 'amount',
             label: 'Amount',
             render: (row) => (
-                <span className="font-semibold text-[var(--success)]">
+                <span style={{ fontWeight: 700, color: 'var(--success)' }}>
                     {formatCurrency(row.amount_paid)}
                 </span>
             )
@@ -148,246 +161,351 @@ export default function Payments() {
         {
             key: 'month',
             label: 'Month',
-            className: 'hidden md:table-cell',
-            render: (row) => row.month_number ? `Month ${row.month_number}` : '-'
+            className: 'hidden sm:table-cell',
+            render: (row) => (
+                <span className="badge badge-primary">M{row.month_number}</span>
+            )
         },
         {
             key: 'mode',
             label: 'Mode',
             render: (row) => (
-                <span className={`badge ${row.payment_mode === 'cash' ? 'badge-primary' : 'badge-success'}`}>
-                    {row.payment_mode === 'cash' ? (
-                        <><FiDollarSign className="mr-1" /> Cash</>
-                    ) : (
-                        <><FiCreditCard className="mr-1" /> GPay</>
-                    )}
+                <span className={`badge ${row.payment_mode === 'gpay' ? 'badge-info' : 'badge-secondary'}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    {row.payment_mode === 'gpay' ? <FiSmartphone size={10} /> : <FiCreditCard size={10} />}
+                    {row.payment_mode.toUpperCase()}
                 </span>
             )
-        },
-        {
-            key: 'collected',
-            label: 'Collected By',
-            className: 'hidden lg:table-cell',
-            render: (row) => row.collected_by_name
         },
         {
             key: 'date',
             label: 'Date',
             className: 'hidden md:table-cell',
-            render: (row) => new Date(row.payment_date).toLocaleDateString()
+            render: (row) => (
+                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                    {new Date(row.payment_date).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: '2-digit'
+                    })}
+                </span>
+            )
         },
         {
             key: 'screenshot',
             label: '',
-            render: (row) => row.screenshot_url ? (
+            className: 'hidden lg:table-cell',
+            render: (row) => row.screenshot_url && (
                 <a
                     href={`http://localhost:8000${row.screenshot_url}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--primary)] hover:underline"
+                    className="btn btn-icon-sm btn-ghost"
+                    title="View Screenshot"
                 >
-                    <FiImage />
+                    <FiCamera size={16} />
                 </a>
-            ) : null
+            )
         }
     ];
 
+    const mobileCardRender = (row) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <div className="avatar avatar-md avatar-gradient">
+                        {row.user_name?.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                        <p style={{ fontWeight: 600 }}>{row.user_name}</p>
+                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.chit_name}</p>
+                    </div>
+                </div>
+                <p style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--success)' }}>
+                    {formatCurrency(row.amount_paid)}
+                </p>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span className="badge badge-primary">Month {row.month_number}</span>
+                    <span className={`badge ${row.payment_mode === 'gpay' ? 'badge-info' : 'badge-secondary'}`}>
+                        {row.payment_mode.toUpperCase()}
+                    </span>
+                </div>
+                <span style={{ color: 'var(--text-muted)' }}>
+                    {new Date(row.payment_date).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short'
+                    })}
+                </span>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="space-y-8 animate-fade-in">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-fade-in">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
-                <div>
-                    <h1 className="text-3xl font-extrabold tracking-tight">Payments</h1>
-                    <p className="text-[var(--text-muted)] mt-1 text-lg">Record and track all financial transactions</p>
-                </div>
-                <button
-                    onClick={() => { resetForm(); setShowModal(true); }}
-                    className="btn btn-primary shadow-lg shadow-[var(--primary)]/20 hover:shadow-[var(--primary)]/40 hover:-translate-y-0.5 transition-all"
-                >
-                    <FiPlus className="text-xl" /> <span className="font-semibold">Record Payment</span>
-                </button>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--primary)] to-indigo-600 text-white shadow-lg shadow-[var(--primary)]/30 group-hover:scale-110 transition-transform">
-                            <FiDollarSign size={24} />
-                        </div>
-                        <div>
-                            <p className="stat-label mb-1">Total Payments</p>
-                            <p className="stat-value text-[var(--text)]">{payments.length}</p>
-                        </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div>
+                        <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.025em' }}>
+                            Payment <span style={{ color: 'var(--primary)' }}>Records</span>
+                        </h1>
+                        <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Track and record all payments
+                        </p>
                     </div>
-                </div>
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-[var(--success)] to-emerald-600 text-white shadow-lg shadow-[var(--success)]/30 group-hover:scale-110 transition-transform">
-                            <FiDollarSign size={24} />
-                        </div>
-                        <div>
-                            <p className="stat-label mb-1">Total Collected</p>
-                            <p className="stat-value text-[var(--success)]">
-                                {formatCurrency(payments.reduce((sum, p) => sum + p.amount_paid, 0))}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform">
-                            <FiDollarSign size={24} />
-                        </div>
-                        <div>
-                            <p className="stat-label mb-1">Cash Payments</p>
-                            <p className="stat-value text-[var(--text)]">
-                                {payments.filter(p => p.payment_mode === 'cash').length}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <div className="stat-card group">
-                    <div className="flex items-center gap-4">
-                        <div className="stat-icon bg-gradient-to-br from-blue-500 to-cyan-600 text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
-                            <FiCreditCard size={24} />
-                        </div>
-                        <div>
-                            <p className="stat-label mb-1">GPay Payments</p>
-                            <p className="stat-value text-[var(--text)]">
-                                {payments.filter(p => p.payment_mode === 'gpay').length}
-                            </p>
-                        </div>
-                    </div>
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="btn btn-primary"
+                    >
+                        <FiPlus /> Record Payment
+                    </button>
                 </div>
             </div>
 
-            {/* Table */}
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiDollarSign size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Total Paid</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(totalPaid)}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiCheck size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Transactions</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800 }}>{payments.length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiCreditCard size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Cash</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800 }}>{cashPayments.length}</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="stat-card">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div
+                            style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                                flexShrink: 0
+                            }}
+                        >
+                            <FiSmartphone size={18} color="white" />
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>GPay</p>
+                            <p style={{ fontSize: '1rem', fontWeight: 800 }}>{gpayPayments.length}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Search */}
+                <div style={{ position: 'relative', maxWidth: '400px', width: '100%' }}>
+                    <FiSearch style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                        type="text"
+                        placeholder="Search by user or chit..."
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.target.value)}
+                        className="input"
+                        style={{ paddingLeft: '2.75rem', width: '100%' }}
+                    />
+                </div>
+
+                {/* Mode Filter */}
+                <div className="chip-group">
+                    {['all', 'cash', 'gpay'].map((mode) => (
+                        <button
+                            key={mode}
+                            onClick={() => setFilterMode(mode)}
+                            className={`chip ${filterMode === mode ? 'active' : ''}`}
+                        >
+                            {mode === 'all' && <FiFilter size={12} />}
+                            {mode === 'cash' && <FiCreditCard size={12} />}
+                            {mode === 'gpay' && <FiSmartphone size={12} />}
+                            {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Data Table */}
             <DataTable
                 columns={columns}
-                data={payments}
+                data={filteredPayments}
                 loading={loading}
-                emptyMessage="No payments recorded yet"
+                emptyMessage="No payments found"
+                emptyIcon={<FiDollarSign size={32} />}
+                mobileCardRender={mobileCardRender}
             />
+
+
 
             {/* Add Payment Modal */}
             <Modal
                 isOpen={showModal}
                 onClose={() => setShowModal(false)}
                 title="Record Payment"
+                size="lg"
                 footer={
                     <>
                         <button onClick={() => setShowModal(false)} className="btn btn-secondary">
                             Cancel
                         </button>
-                        <button onClick={handleSubmit} className="btn btn-success">
-                            <FiDollarSign /> Record Payment
+                        <button onClick={handleSubmit} disabled={saving} className="btn btn-primary">
+                            {saving ? <div className="spinner spinner-sm" /> : 'Record'}
                         </button>
                     </>
                 }
             >
-                <div className="space-y-4">
-                    <div className="input-group">
-                        <label>Select User *</label>
-                        <select
-                            value={formData.user_id}
-                            onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
-                            className="select"
-                        >
-                            <option value="">Choose user</option>
-                            {users.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                    {user.name} ({user.phone})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="input-group">
-                        <label>Select Chit *</label>
-                        <select
-                            value={formData.chit_id}
-                            onChange={(e) => setFormData({ ...formData, chit_id: e.target.value, chit_month_id: '' })}
-                            className="select"
-                        >
-                            <option value="">Choose chit group</option>
-                            {chits.map((chit) => (
-                                <option key={chit.id} value={chit.id}>
-                                    {chit.chit_name} ({formatCurrency(chit.monthly_amount)}/month)
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {formData.chit_id && chitMonths.length > 0 && (
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
                         <div className="input-group">
-                            <label>For Month</label>
+                            <label>User *</label>
                             <select
-                                value={formData.chit_month_id}
-                                onChange={(e) => setFormData({ ...formData, chit_month_id: e.target.value })}
-                                className="select"
+                                value={formData.user_id}
+                                onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
+                                className="input"
+                                required
                             >
-                                <option value="">Select month (optional)</option>
-                                {chitMonths.map((month) => (
-                                    <option key={month.id} value={month.id}>
-                                        Month {month.month_number} - {month.status}
-                                    </option>
+                                <option value="">Select user...</option>
+                                {users.map(u => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
                                 ))}
                             </select>
                         </div>
-                    )}
 
-                    <div className="input-group">
-                        <label>Amount (₹) *</label>
-                        <input
-                            type="number"
-                            value={formData.amount_paid}
-                            onChange={(e) => setFormData({ ...formData, amount_paid: e.target.value })}
-                            className="input"
-                            placeholder="Enter amount"
-                        />
+                        <div className="input-group">
+                            <label>Chit Group *</label>
+                            <select
+                                value={formData.chit_id}
+                                onChange={(e) => setFormData({ ...formData, chit_id: e.target.value })}
+                                className="input"
+                                required
+                            >
+                                <option value="">Select chit...</option>
+                                {chits.map(c => (
+                                    <option key={c.id} value={c.id}>{c.chit_name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                        <div className="input-group">
+                            <label>Month Number *</label>
+                            <input
+                                type="number"
+                                value={formData.month_number}
+                                onChange={(e) => setFormData({ ...formData, month_number: e.target.value })}
+                                className="input"
+                                min="1"
+                                placeholder="Enter month"
+                                required
+                            />
+                        </div>
+
+                        <div className="input-group">
+                            <label>Amount (₹) *</label>
+                            <input
+                                type="number"
+                                value={formData.amount_paid}
+                                onChange={(e) => setFormData({ ...formData, amount_paid: e.target.value })}
+                                className="input"
+                                min="1"
+                                placeholder="Enter amount"
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div className="input-group">
                         <label>Payment Mode *</label>
-                        <div className="flex gap-4">
-                            <label className={`
-                flex-1 p-4 rounded-lg border-2 cursor-pointer transition-all text-center
-                ${formData.payment_mode === 'cash'
-                                    ? 'border-[var(--primary)] bg-[var(--primary)]/10'
-                                    : 'border-[var(--surface-light)]'
-                                }
-              `}>
-                                <input
-                                    type="radio"
-                                    name="payment_mode"
-                                    value="cash"
-                                    checked={formData.payment_mode === 'cash'}
-                                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                                    className="sr-only"
-                                />
-                                <FiDollarSign className="mx-auto text-xl mb-1" />
-                                <span className="text-sm font-medium">Cash</span>
-                            </label>
-
-                            <label className={`
-                flex-1 p-4 rounded-lg border-2 cursor-pointer transition-all text-center
-                ${formData.payment_mode === 'gpay'
-                                    ? 'border-[var(--success)] bg-[var(--success)]/10'
-                                    : 'border-[var(--surface-light)]'
-                                }
-              `}>
-                                <input
-                                    type="radio"
-                                    name="payment_mode"
-                                    value="gpay"
-                                    checked={formData.payment_mode === 'gpay'}
-                                    onChange={(e) => setFormData({ ...formData, payment_mode: e.target.value })}
-                                    className="sr-only"
-                                />
-                                <FiCreditCard className="mx-auto text-xl mb-1" />
-                                <span className="text-sm font-medium">GPay</span>
-                            </label>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                            {['cash', 'gpay'].map((mode) => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setFormData({ ...formData, payment_mode: mode })}
+                                    style={{
+                                        padding: '1rem',
+                                        borderRadius: '0.75rem',
+                                        border: '1px solid',
+                                        borderColor: formData.payment_mode === mode ? 'var(--primary)' : 'rgba(255,255,255,0.1)',
+                                        background: formData.payment_mode === mode ? 'var(--primary)' : 'var(--surface-light)',
+                                        color: formData.payment_mode === mode ? 'white' : 'var(--text-muted)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.5rem',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {mode === 'cash' ? <FiCreditCard size={18} /> : <FiSmartphone size={18} />}
+                                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                                </button>
+                            ))}
                         </div>
                     </div>
 
@@ -396,11 +514,58 @@ export default function Payments() {
                         <textarea
                             value={formData.notes}
                             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                            className="input min-h-[80px]"
-                            placeholder="Optional notes"
+                            className="input"
+                            rows={2}
+                            placeholder="Optional notes..."
                         />
                     </div>
-                </div>
+
+                    <div className="input-group">
+                        <label>Screenshot (Optional)</label>
+                        {screenshot ? (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.75rem',
+                                padding: '0.75rem',
+                                borderRadius: '0.75rem',
+                                background: 'var(--surface-light)'
+                            }}>
+                                <FiCamera style={{ color: 'var(--primary)' }} />
+                                <span style={{ fontSize: '0.875rem', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{screenshot.name}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setScreenshot(null)}
+                                    className="btn-icon-sm btn-ghost"
+                                    style={{ color: 'var(--danger)' }}
+                                >
+                                    <FiX size={16} />
+                                </button>
+                            </div>
+                        ) : (
+                            <label style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                padding: '1.5rem',
+                                borderRadius: '0.75rem',
+                                border: '2px dashed rgba(255,255,255,0.1)',
+                                cursor: 'pointer',
+                                transition: 'border-color 0.2s'
+                            }}>
+                                <FiCamera style={{ color: 'var(--text-muted)' }} />
+                                <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Click to upload</span>
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) => setScreenshot(e.target.files[0])}
+                                    style={{ display: 'none' }}
+                                />
+                            </label>
+                        )}
+                    </div>
+                </form>
             </Modal>
         </div>
     );

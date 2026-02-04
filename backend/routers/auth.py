@@ -86,3 +86,168 @@ async def change_password(
     db.commit()
     
     return {"message": "Password changed successfully"}
+
+
+@router.post("/password-reset/request")
+async def request_password_reset(
+    phone: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Request password reset - generates a secure token.
+    
+    In production, this token would be sent via SMS/email.
+    For now, we return it directly (for testing/development).
+    
+    Token expires in 30 minutes and can only be used once.
+    """
+    from models.password_reset_token import PasswordResetToken
+    
+    # Find staff by phone
+    staff = db.query(Staff).filter(Staff.phone == phone).first()
+    
+    if not staff:
+        # Don't reveal if phone exists or not (security)
+        return {
+            "message": "If this phone number is registered, a reset link has been sent.",
+            "expires_in_minutes": 30
+        }
+    
+    if not staff.is_active:
+        return {
+            "message": "If this phone number is registered, a reset link has been sent.",
+            "expires_in_minutes": 30
+        }
+    
+    # Invalidate any existing unused tokens for this staff
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.staff_id == staff.id,
+        PasswordResetToken.used == False
+    ).update({"used": True})
+    
+    # Create new token
+    token = PasswordResetToken(
+        staff_id=staff.id,
+        token=PasswordResetToken.generate_token(),
+        expires_at=PasswordResetToken.get_expiry(minutes=30)
+    )
+    db.add(token)
+    db.commit()
+    
+    # In production: Send SMS/Email with token
+    # For development: Return token directly
+    return {
+        "message": "Password reset token generated",
+        "token": token.token,  # Remove in production!
+        "expires_in_minutes": 30,
+        "note": "In production, this token would be sent via SMS/email"
+    }
+
+
+@router.post("/password-reset/verify")
+async def verify_password_reset(
+    token: str,
+    new_password: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Reset password using the token from /password-reset/request.
+    
+    Token must be:
+    - Valid (not expired)
+    - Not already used
+    - Matching a real staff account
+    """
+    from models.password_reset_token import PasswordResetToken
+    from datetime import datetime
+    
+    # Find token
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == token
+    ).first()
+    
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    if not reset_token.is_valid():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reset token has expired or already been used"
+        )
+    
+    # Validate new password
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters"
+        )
+    
+    # Get staff and update password
+    staff = db.query(Staff).filter(Staff.id == reset_token.staff_id).first()
+    if not staff:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid reset token"
+        )
+    
+    # Update password
+    staff.password_hash = get_password_hash(new_password)
+    
+    # Mark token as used
+    reset_token.mark_used()
+    
+    db.commit()
+    
+    return {"message": "Password has been reset successfully. You can now login with your new password."}
+
+
+@router.post("/password-reset/admin")
+async def admin_reset_password(
+    staff_id: int,
+    new_password: str,
+    current_staff: Staff = Depends(get_current_staff),
+    db: Session = Depends(get_db)
+):
+    """
+    Admin-only: Reset password for any staff member.
+    
+    This is useful when staff forgets password and can't 
+    receive SMS/email for self-service reset.
+    """
+    from auth.dependencies import require_admin
+    
+    # Must be admin
+    if not current_staff.is_admin():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    
+    # Find target staff
+    target_staff = db.query(Staff).filter(Staff.id == staff_id).first()
+    if not target_staff:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Staff not found"
+        )
+    
+    # Validate new password
+    if len(new_password) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters"
+        )
+    
+    # Update password
+    target_staff.password_hash = get_password_hash(new_password)
+    db.commit()
+    
+    return {
+        "message": f"Password reset successfully for {target_staff.name}",
+        "staff_id": target_staff.id,
+        "staff_name": target_staff.name
+    }
+

@@ -81,7 +81,22 @@ async def create_payment(
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
-    """Record a new payment"""
+    """
+    Record a new payment with automatic ledger allocation.
+    
+    Payment Flow:
+    1. Create Payment record
+    2. Get all pending DEBIT entries for user + chit (FIFO order)
+    3. Allocate payment to oldest dues first
+    4. Create CREDIT entries for each allocation
+    5. Any excess amount becomes advance credit
+    6. Update UserBalance cache
+    """
+    from models.account_ledger import AccountLedger, EntryType, LedgerSource
+    from models.user_balance import UserBalance
+    from sqlalchemy import func
+    from decimal import Decimal
+    
     # Verify user exists
     user = db.query(User).filter(User.id == payment_data.user_id).first()
     if not user:
@@ -119,7 +134,54 @@ async def create_payment(
                 detail="Chit month not found"
             )
     
-    # Create payment
+    # === PAYMENT VALIDATION RULES ===
+    from models.chit_member import ChitMember
+    from datetime import timedelta
+    
+    # 1. Verify user is a member of this chit
+    membership = db.query(ChitMember).filter(
+        ChitMember.user_id == payment_data.user_id,
+        ChitMember.chit_id == payment_data.chit_id,
+        ChitMember.is_active == True
+    ).first()
+    
+    if not membership:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is not an active member of this chit group"
+        )
+    
+    # 2. Validate payment amount (minimum and maximum limits)
+    if payment_data.amount_paid <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment amount must be greater than zero"
+        )
+    
+    # Max payment = total chit amount (to prevent accidental large amounts)
+    if payment_data.amount_paid > float(chit.total_amount):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment amount cannot exceed total chit amount of {chit.total_amount}"
+        )
+    
+    # 3. Check for duplicate payments (same user, chit, amount within 5 minutes)
+    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    duplicate = db.query(Payment).filter(
+        Payment.user_id == payment_data.user_id,
+        Payment.chit_id == payment_data.chit_id,
+        Payment.amount_paid == payment_data.amount_paid,
+        Payment.payment_date >= five_minutes_ago
+    ).first()
+    
+    if duplicate:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Possible duplicate payment detected. A payment of the same amount was recorded {(datetime.utcnow() - duplicate.payment_date).seconds // 60} minutes ago. Wait 5 minutes or use a different amount."
+        )
+
+    
+    # Create payment record
     payment_mode = PaymentMode.GPAY if payment_data.payment_mode == "gpay" else PaymentMode.CASH
     
     payment = Payment(
@@ -136,6 +198,128 @@ async def create_payment(
     db.commit()
     db.refresh(payment)
     
+    # === LEDGER ALLOCATION ===
+    # Get all chit months with pending dues (FIFO - oldest first)
+    chit_months = db.query(ChitMonth).filter(
+        ChitMonth.chit_id == payment_data.chit_id
+    ).order_by(ChitMonth.month_number).all()
+    
+    remaining_amount = Decimal(str(payment_data.amount_paid))
+    allocations = []
+    
+    for month in chit_months:
+        if remaining_amount <= 0:
+            break
+        
+        # Calculate pending for this month
+        month_debit = db.query(func.sum(AccountLedger.amount)).filter(
+            AccountLedger.user_id == payment_data.user_id,
+            AccountLedger.chit_id == payment_data.chit_id,
+            AccountLedger.chit_month_id == month.id,
+            AccountLedger.entry_type == EntryType.DEBIT
+        ).scalar() or Decimal('0')
+        
+        month_credit = db.query(func.sum(AccountLedger.amount)).filter(
+            AccountLedger.user_id == payment_data.user_id,
+            AccountLedger.chit_id == payment_data.chit_id,
+            AccountLedger.chit_month_id == month.id,
+            AccountLedger.entry_type == EntryType.CREDIT
+        ).scalar() or Decimal('0')
+        
+        pending = month_debit - month_credit
+        
+        if pending <= 0:
+            continue  # This month is fully paid
+        
+        # Allocate payment to this month
+        if remaining_amount >= pending:
+            # Full payment for this month
+            allocation_amount = pending
+            allocation_type = "full"
+        else:
+            # Partial payment
+            allocation_amount = remaining_amount
+            allocation_type = "partial"
+        
+        # Create CREDIT entry
+        credit_entry = AccountLedger(
+            user_id=payment_data.user_id,
+            chit_id=payment_data.chit_id,
+            chit_month_id=month.id,
+            entry_type=EntryType.CREDIT,
+            amount=allocation_amount,
+            source=LedgerSource.PAYMENT,
+            reference_id=payment.id,
+            reference_type="payment",
+            notes=f"Payment #{payment.id} - Month {month.month_number} ({allocation_type})",
+            created_by=current_staff.id
+        )
+        db.add(credit_entry)
+        
+        allocations.append({
+            "month_number": month.month_number,
+            "amount": float(allocation_amount),
+            "type": allocation_type
+        })
+        
+        remaining_amount -= allocation_amount
+    
+    # Handle advance/overpayment
+    advance_amount = 0
+    if remaining_amount > 0:
+        advance_amount = float(remaining_amount)
+        # Create advance CREDIT entry (no month assigned)
+        advance_entry = AccountLedger(
+            user_id=payment_data.user_id,
+            chit_id=payment_data.chit_id,
+            chit_month_id=None,  # No specific month for advance
+            entry_type=EntryType.CREDIT,
+            amount=remaining_amount,
+            source=LedgerSource.ADVANCE,
+            reference_id=payment.id,
+            reference_type="payment",
+            notes=f"Advance payment from Payment #{payment.id}",
+            created_by=current_staff.id
+        )
+        db.add(advance_entry)
+    
+    db.commit()
+    
+    # Update UserBalance cache
+    balance = db.query(UserBalance).filter(
+        UserBalance.user_id == payment_data.user_id,
+        UserBalance.chit_id == payment_data.chit_id
+    ).first()
+    
+    if not balance:
+        balance = UserBalance(
+            user_id=payment_data.user_id,
+            chit_id=payment_data.chit_id
+        )
+        db.add(balance)
+    
+    # Recalculate balance
+    total_debit = db.query(func.sum(AccountLedger.amount)).filter(
+        AccountLedger.user_id == payment_data.user_id,
+        AccountLedger.chit_id == payment_data.chit_id,
+        AccountLedger.entry_type == EntryType.DEBIT
+    ).scalar() or Decimal('0')
+    
+    total_credit = db.query(func.sum(AccountLedger.amount)).filter(
+        AccountLedger.user_id == payment_data.user_id,
+        AccountLedger.chit_id == payment_data.chit_id,
+        AccountLedger.entry_type == EntryType.CREDIT
+    ).scalar() or Decimal('0')
+    
+    balance.total_due = float(total_debit)
+    balance.total_paid = float(total_credit)
+    diff = float(total_debit) - float(total_credit)
+    balance.pending = max(0, diff)
+    balance.advance = max(0, -diff)
+    balance.updated_at = datetime.utcnow()
+    
+    db.commit()
+    
     return {
         "id": payment.id,
         "user_id": payment.user_id,
@@ -146,8 +330,11 @@ async def create_payment(
         "payment_mode": payment.payment_mode.value,
         "collected_by_staff_id": payment.collected_by_staff_id,
         "payment_date": payment.payment_date,
-        "message": "Payment recorded successfully"
+        "allocations": allocations,
+        "advance_amount": advance_amount,
+        "message": "Payment recorded and allocated successfully"
     }
+
 
 
 @router.post("/{payment_id}/upload-screenshot")

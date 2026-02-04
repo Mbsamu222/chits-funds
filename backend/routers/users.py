@@ -16,19 +16,26 @@ from schemas import UserCreate, UserUpdate, UserResponse, UserDashboard
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-@router.get("", response_model=List[UserResponse])
+@router.get("")
 async def list_users(
     search: Optional[str] = Query(None, description="Search by name or phone"),
-    skip: int = 0,
-    limit: int = 50,
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(50, ge=1, le=100, description="Items per page"),
     current_staff: Staff = Depends(get_current_staff),
     db: Session = Depends(get_db)
 ):
     """
-    List all users (filtered for staff, all for admin)
+    List all users with pagination (filtered for staff, all for admin)
     Staff can only see their assigned users
+    
+    Returns paginated response with:
+    - items: list of users
+    - total: total count
+    - page: current page
+    - per_page: items per page
+    - total_pages: total number of pages
     """
-    query = db.query(User)
+    query = db.query(User).filter(User.is_active == True)  # Soft delete filter
     
     # Filter based on staff permissions
     query = filter_users_for_staff(query, current_staff, db)
@@ -40,8 +47,22 @@ async def list_users(
             (User.phone.ilike(f"%{search}%"))
         )
     
-    users = query.offset(skip).limit(limit).all()
-    return users
+    # Get total count
+    total = query.count()
+    
+    # Calculate pagination
+    skip = (page - 1) * per_page
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    
+    users = query.order_by(User.name).offset(skip).limit(per_page).all()
+    
+    return {
+        "items": [UserResponse.model_validate(u) for u in users],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
 
 
 @router.post("", response_model=UserResponse)
@@ -266,3 +287,100 @@ async def get_user_dashboard(
         "total_balance": total_balance,
         "pending_months": pending_months
     }
+
+
+@router.delete("/{user_id}")
+async def soft_delete_user(
+    user_id: int,
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Soft delete (archive) a user (Admin only)
+    Sets is_active to False instead of permanently deleting
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already archived"
+        )
+    
+    user.is_active = False
+    db.commit()
+    
+    return {"message": f"User '{user.name}' has been archived", "user_id": user_id}
+
+
+@router.post("/{user_id}/restore")
+async def restore_user(
+    user_id: int,
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Restore a soft-deleted (archived) user (Admin only)
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    if user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User is already active"
+        )
+    
+    user.is_active = True
+    db.commit()
+    
+    return {"message": f"User '{user.name}' has been restored", "user_id": user_id}
+
+
+@router.get("/archived/list")
+async def list_archived_users(
+    search: Optional[str] = Query(None, description="Search by name or phone"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(50, ge=1, le=100, description="Items per page"),
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    List all archived (soft-deleted) users (Admin only)
+    """
+    query = db.query(User).filter(User.is_active == False)
+    
+    if search:
+        query = query.filter(
+            (User.name.ilike(f"%{search}%")) | 
+            (User.phone.ilike(f"%{search}%"))
+        )
+    
+    # Get total count
+    total = query.count()
+    
+    # Calculate pagination
+    skip = (page - 1) * per_page
+    total_pages = (total + per_page - 1) // per_page if total > 0 else 1
+    
+    users = query.order_by(User.name).offset(skip).limit(per_page).all()
+    
+    return {
+        "items": [UserResponse.model_validate(u) for u in users],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
+
