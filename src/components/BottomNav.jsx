@@ -1,9 +1,10 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-    FiHome, FiUsers, FiGrid, FiDollarSign,
+    FiHome, FiUsers, FiGrid,
     FiPieChart
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 
 export default function BottomNav() {
     const { isAdmin } = useAuth();
@@ -12,7 +13,7 @@ export default function BottomNav() {
         { icon: FiHome, label: 'Home', path: '/' },
         { icon: FiUsers, label: 'Users', path: '/users' },
         { icon: FiGrid, label: 'Chits', path: '/chits' },
-        { icon: FiDollarSign, label: 'Payments', path: '/payments' },
+        { icon: LuIndianRupee, label: 'Payments', path: '/payments' },
         { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true }
     ];
 

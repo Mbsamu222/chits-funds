@@ -4,8 +4,9 @@ import api from '../utils/api';
 import PaymentStatusGrid from '../components/PaymentStatusGrid';
 import {
     FiArrowLeft, FiPhone, FiMail, FiMapPin,
-    FiGrid, FiDollarSign, FiCalendar, FiTrendingUp
+    FiGrid, FiCalendar, FiTrendingUp
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 import toast from 'react-hot-toast';
 
 export default function UserDetail() {
@@ -206,7 +207,7 @@ export default function UserDetail() {
                             background: 'linear-gradient(135deg, var(--success) 0%, #059669 100%)',
                             flexShrink: 0
                         }}>
-                            <FiDollarSign size={20} color="white" />
+                            <LuIndianRupee size={20} color="white" />
                         </div>
                         <div style={{ minWidth: 0 }}>
                             <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>Total Paid</p>

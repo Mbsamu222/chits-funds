@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import {
-    FiUsers, FiGrid, FiDollarSign, FiTrendingUp,
+    FiUsers, FiGrid, FiTrendingUp,
     FiArrowRight, FiArrowUpRight, FiClock, FiCheckCircle,
     FiAlertCircle, FiCreditCard, FiPieChart, FiActivity
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 import toast from 'react-hot-toast';
 
 export default function Dashboard() {
@@ -310,7 +311,7 @@ export default function Dashboard() {
                                     marginBottom: '0.75rem',
                                     boxShadow: '0 8px 20px rgba(16, 185, 129, 0.3)'
                                 }}>
-                                    <FiDollarSign size={18} color="white" />
+                                    <LuIndianRupee size={18} color="white" />
                                 </div>
                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500, marginBottom: '0.25rem' }}>
                                     This Month

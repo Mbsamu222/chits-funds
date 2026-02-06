@@ -4,7 +4,6 @@ import api from '../utils/api';
 import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import {
-    FiDollarSign,
     FiUsers,
     FiTrendingUp,
     FiAlertTriangle,
@@ -15,6 +14,7 @@ import {
     FiFilter,
     FiChevronRight
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -391,7 +391,7 @@ export default function Accounts() {
                     alignItems: 'center'
                 }}>
                     <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>
-                        <FiDollarSign style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
+                        <LuIndianRupee style={{ marginRight: '0.5rem', verticalAlign: 'middle' }} />
                         Account Ledger
                     </h2>
                 </div>
@@ -402,7 +402,7 @@ export default function Accounts() {
                     searchValue={searchValue}
                     onSearchChange={setSearchValue}
                     emptyMessage="No ledger entries found"
-                    emptyIcon={<FiDollarSign size={32} />}
+                    emptyIcon={<LuIndianRupee size={32} />}
                     mobileCardRender={mobileCardRender}
                 />
 

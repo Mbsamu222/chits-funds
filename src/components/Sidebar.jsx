@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-    FiHome, FiUsers, FiGrid, FiDollarSign,
+    FiHome, FiUsers, FiGrid,
     FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 
 export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
     const { user, logout, isAdmin } = useAuth();
@@ -13,7 +14,7 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
         { icon: FiUsers, label: 'Users', path: '/users' },
         { icon: FiUserCheck, label: 'Staff', path: '/staff', adminOnly: true },
         { icon: FiGrid, label: 'Chits', path: '/chits' },
-        { icon: FiDollarSign, label: 'Payments', path: '/payments' },
+        { icon: LuIndianRupee, label: 'Payments', path: '/payments' },
         { icon: FiBook, label: 'Accounts', path: '/accounts', adminOnly: true },
         { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true }
     ];

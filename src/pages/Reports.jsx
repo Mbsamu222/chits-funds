@@ -1,11 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import {
-    FiPieChart, FiTrendingUp, FiDollarSign,
-    FiCalendar, FiGrid, FiBarChart2, FiShield
+    FiPieChart, FiTrendingUp,
+    FiCalendar, FiGrid, FiBarChart2, FiShield,
+    FiDownload, FiFileText, FiFile, FiChevronDown
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 import toast from 'react-hot-toast';
+import {
+    exportOverviewToExcel,
+    exportChitsToExcel,
+    exportMonthlyToExcel,
+    exportAllToExcel,
+    exportOverviewToPdf,
+    exportChitsToPdf,
+    exportMonthlyToPdf,
+    exportAllToPdf
+} from '../utils/exportReports';
 
 export default function Reports() {
     const { isAdmin } = useAuth();
@@ -14,6 +26,62 @@ export default function Reports() {
     const [dashboardData, setDashboardData] = useState(null);
     const [chitProfits, setChitProfits] = useState([]);
     const [monthlyProfits, setMonthlyProfits] = useState([]);
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const exportMenuRef = useRef(null);
+
+    // Close export menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Export handlers
+    const handleExport = (type, format) => {
+        try {
+            if (format === 'excel') {
+                switch (type) {
+                    case 'overview':
+                        exportOverviewToExcel(dashboardData, chitProfits);
+                        break;
+                    case 'chits':
+                        exportChitsToExcel(chitProfits);
+                        break;
+                    case 'monthly':
+                        exportMonthlyToExcel(monthlyProfits);
+                        break;
+                    case 'all':
+                        exportAllToExcel(dashboardData, chitProfits, monthlyProfits);
+                        break;
+                }
+                toast.success(`Excel report exported successfully!`);
+            } else if (format === 'pdf') {
+                switch (type) {
+                    case 'overview':
+                        exportOverviewToPdf(dashboardData, chitProfits);
+                        break;
+                    case 'chits':
+                        exportChitsToPdf(chitProfits);
+                        break;
+                    case 'monthly':
+                        exportMonthlyToPdf(monthlyProfits);
+                        break;
+                    case 'all':
+                        exportAllToPdf(dashboardData, chitProfits, monthlyProfits);
+                        break;
+                }
+                toast.success(`PDF report exported successfully!`);
+            }
+        } catch (error) {
+            console.error('Export failed:', error);
+            toast.error('Failed to export report');
+        }
+        setShowExportMenu(false);
+    };
 
     useEffect(() => {
         if (isAdmin()) {
@@ -28,10 +96,40 @@ export default function Reports() {
                 api.get('/reports/profit/chits'),
                 api.get('/reports/profit/monthly')
             ]);
-            setDashboardData(dashboardRes.data);
-            setChitProfits(chitsRes.data);
-            setMonthlyProfits(monthlyRes.data);
+
+            // Transform dashboard data to flat structure for easy access
+            const dashboard = dashboardRes.data;
+            setDashboardData({
+                total_profit: dashboard.financial?.total_profit || 0,
+                monthly_collection: dashboard.financial?.total_collected || 0,
+                active_chits: dashboard.stats?.total_chits || 0,
+                pending_amount: dashboard.financial?.total_payout || 0,
+                total_users: dashboard.stats?.total_users || 0,
+                total_collected: dashboard.financial?.total_collected || 0
+            });
+
+            // Transform chit profits - backend uses 'profit', frontend expects 'total_profit'
+            const chits = chitsRes.data || [];
+            setChitProfits(chits.map(c => ({
+                ...c,
+                total_profit: c.profit || 0
+            })));
+
+            // Transform monthly profits - backend returns { year, months: [...] }
+            const monthlyData = monthlyRes.data;
+            const months = monthlyData?.months || [];
+            setMonthlyProfits(months.map(m => {
+                const [year, month] = m.month.split('-');
+                return {
+                    year: parseInt(year),
+                    month: parseInt(month),
+                    total_collected: m.total_collected || 0,
+                    total_payouts: m.total_payout || 0,
+                    profit: m.profit || 0
+                };
+            }));
         } catch (error) {
+            console.error('Failed to load reports:', error);
             toast.error('Failed to load reports');
         } finally {
             setLoading(false);
@@ -97,13 +195,120 @@ export default function Reports() {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} className="animate-fade-in">
             {/* Header */}
-            <div>
-                <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.025em' }}>
-                    Financial <span style={{ color: 'var(--primary)' }}>Reports</span>
-                </h1>
-                <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                    Comprehensive analytics and profit tracking
-                </p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                <div>
+                    <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.025em' }}>
+                        Financial <span style={{ color: 'var(--primary)' }}>Reports</span>
+                    </h1>
+                    <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                        Comprehensive analytics and profit tracking
+                    </p>
+                </div>
+
+                {/* Export Dropdown */}
+                <div ref={exportMenuRef} style={{ position: 'relative' }}>
+                    <button
+                        onClick={() => setShowExportMenu(!showExportMenu)}
+                        className="btn btn-primary"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    >
+                        <FiDownload size={18} />
+                        Export
+                        <FiChevronDown
+                            size={16}
+                            style={{
+                                transform: showExportMenu ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.2s'
+                            }}
+                        />
+                    </button>
+
+                    {showExportMenu && (
+                        <div
+                            className="card animate-fade-in export-dropdown-menu"
+                        >
+                            {/* Complete Report */}
+                            <div style={{ padding: '0.5rem', marginBottom: '0.5rem' }}>
+                                <p style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                                    Complete Report
+                                </p>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                    <button
+                                        onClick={() => handleExport('all', 'excel')}
+                                        className="btn btn-secondary"
+                                        style={{ flex: 1, fontSize: '0.75rem', padding: '0.5rem' }}
+                                    >
+                                        <FiFileText size={14} style={{ color: '#10b981' }} /> Excel
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('all', 'pdf')}
+                                        className="btn btn-secondary"
+                                        style={{ flex: 1, fontSize: '0.75rem', padding: '0.5rem' }}
+                                    >
+                                        <FiFile size={14} style={{ color: '#ef4444' }} /> PDF
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '0.5rem 0' }} />
+
+                            {/* Individual Reports */}
+                            <div style={{ padding: '0.5rem' }}>
+                                <p style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                                    Individual Reports
+                                </p>
+
+                                {/* Overview */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <FiPieChart size={14} style={{ color: 'var(--primary)' }} />
+                                        <span style={{ fontSize: '0.875rem' }}>Overview</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <button onClick={() => handleExport('overview', 'excel')} className="btn-icon-sm btn-ghost" title="Export Excel">
+                                            <FiFileText size={14} style={{ color: '#10b981' }} />
+                                        </button>
+                                        <button onClick={() => handleExport('overview', 'pdf')} className="btn-icon-sm btn-ghost" title="Export PDF">
+                                            <FiFile size={14} style={{ color: '#ef4444' }} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Chit-wise */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <FiGrid size={14} style={{ color: 'var(--warning)' }} />
+                                        <span style={{ fontSize: '0.875rem' }}>Chit-wise</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <button onClick={() => handleExport('chits', 'excel')} className="btn-icon-sm btn-ghost" title="Export Excel">
+                                            <FiFileText size={14} style={{ color: '#10b981' }} />
+                                        </button>
+                                        <button onClick={() => handleExport('chits', 'pdf')} className="btn-icon-sm btn-ghost" title="Export PDF">
+                                            <FiFile size={14} style={{ color: '#ef4444' }} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Monthly */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <FiCalendar size={14} style={{ color: 'var(--info)' }} />
+                                        <span style={{ fontSize: '0.875rem' }}>Monthly</span>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                        <button onClick={() => handleExport('monthly', 'excel')} className="btn-icon-sm btn-ghost" title="Export Excel">
+                                            <FiFileText size={14} style={{ color: '#10b981' }} />
+                                        </button>
+                                        <button onClick={() => handleExport('monthly', 'pdf')} className="btn-icon-sm btn-ghost" title="Export PDF">
+                                            <FiFile size={14} style={{ color: '#ef4444' }} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Summary Stats */}
@@ -146,7 +351,7 @@ export default function Reports() {
                                 flexShrink: 0
                             }}
                         >
-                            <FiDollarSign size={18} color="white" />
+                            <LuIndianRupee size={18} color="white" />
                         </div>
                         <div style={{ minWidth: 0 }}>
                             <p style={{ fontSize: '0.625rem', color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase' }}>This Month</p>

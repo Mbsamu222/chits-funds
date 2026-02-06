@@ -5,8 +5,9 @@ import api from '../utils/api';
 import Modal from '../components/Modal';
 import {
     FiPlus, FiGrid, FiSearch, FiCalendar,
-    FiUsers, FiDollarSign, FiClock, FiX, FiCheckCircle
+    FiUsers, FiClock, FiX, FiCheckCircle
 } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 import toast from 'react-hot-toast';
 
 export default function Chits() {
@@ -289,7 +290,7 @@ export default function Chits() {
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <FiDollarSign size={14} color="#6366f1" /> Total
+                                        <LuIndianRupee size={14} color="#6366f1" /> Total
                                     </span>
                                     <span style={{ fontWeight: 700, color: '#818cf8', fontSize: '1rem' }}>
                                         {formatCurrency(chit.total_amount)}

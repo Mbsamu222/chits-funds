@@ -2117,3 +2117,28 @@ textarea::placeholder {
     border: 1px solid #ddd;
   }
 }
+
+/* ============================================
+   EXPORT DROPDOWN (Responsive)
+   ============================================ */
+
+.export-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  min-width: 280px;
+  padding: 0.5rem;
+  z-index: var(--z-dropdown);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 639px) {
+  .export-dropdown-menu {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90vw;
+    min-width: unset;
+    max-width: 360px;
+  }
+}

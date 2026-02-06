@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiPhone, FiLock, FiArrowRight, FiEye, FiEyeOff, FiDollarSign } from 'react-icons/fi';
+import { FiPhone, FiLock, FiArrowRight, FiEye, FiEyeOff } from 'react-icons/fi';
+import { LuIndianRupee } from "react-icons/lu";
 import toast from 'react-hot-toast';
 
 export default function Login() {
@@ -109,7 +110,7 @@ export default function Login() {
                             boxShadow: '0 8px 32px var(--primary-glow)'
                         }}
                     >
-                        <FiDollarSign size={40} color="white" />
+                        <LuIndianRupee size={40} color="white" />
                     </div>
                     <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.025em', marginBottom: '0.5rem' }}>
                         <span className="gradient-text">Chit</span>
