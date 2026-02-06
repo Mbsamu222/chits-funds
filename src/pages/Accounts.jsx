@@ -13,7 +13,8 @@ import {
     FiArrowDownRight,
     FiRefreshCw,
     FiFilter,
-    FiChevronRight
+    FiChevronRight,
+    FiCalendar
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -23,6 +24,7 @@ export default function Accounts() {
     const navigate = useNavigate();
     const [dashboard, setDashboard] = useState(null);
     const [ledgerEntries, setLedgerEntries] = useState([]);
+    const [chits, setChits] = useState([]);
     const [loading, setLoading] = useState(true);
     const [ledgerLoading, setLedgerLoading] = useState(false);
     const [searchValue, setSearchValue] = useState('');
@@ -31,17 +33,37 @@ export default function Accounts() {
     const [totalPages, setTotalPages] = useState(1);
     const [filters, setFilters] = useState({
         entry_type: '',
-        source: ''
+        source: '',
+        month_number: '',
+        year: '',
+        chit_id: ''
     });
+
+    // Generate month options (1-20)
+    const monthOptions = Array.from({ length: 20 }, (_, i) => i + 1);
+    
+    // Generate year options (current year and 5 years back/forward)
+    const currentYear = new Date().getFullYear();
+    const yearOptions = Array.from({ length: 7 }, (_, i) => currentYear - 3 + i);
 
     useEffect(() => {
         fetchDashboard();
+        fetchChits();
         fetchLedgerEntries();
     }, []);
 
     useEffect(() => {
         fetchLedgerEntries();
     }, [currentPage, filters]);
+
+    const fetchChits = async () => {
+        try {
+            const response = await api.get('/chits');
+            setChits(response.data.items || []);
+        } catch (error) {
+            console.error('Failed to fetch chits');
+        }
+    };
 
     const fetchDashboard = async () => {
         try {
@@ -60,12 +82,16 @@ export default function Accounts() {
             let url = `/accounts/ledger?page=${currentPage}&per_page=20`;
             if (filters.entry_type) url += `&entry_type=${filters.entry_type}`;
             if (filters.source) url += `&source=${filters.source}`;
+            if (filters.month_number) url += `&month_number=${filters.month_number}`;
+            if (filters.year) url += `&year=${filters.year}`;
+            if (filters.chit_id) url += `&chit_id=${filters.chit_id}`;
 
             const response = await api.get(url);
             setLedgerEntries(response.data.items);
             setTotalPages(response.data.total_pages);
         } catch (error) {
             toast.error('Failed to fetch ledger entries');
+
         } finally {
             setLedgerLoading(false);
         }
@@ -80,6 +106,7 @@ export default function Accounts() {
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return '-';
         return new Date(dateString).toLocaleDateString('en-IN', {
             day: '2-digit',
             month: 'short',
@@ -89,10 +116,19 @@ export default function Accounts() {
         });
     };
 
+    const formatDueDate = (dateString) => {
+        if (!dateString) return '-';
+        return new Date(dateString).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+    };
+
     const ledgerColumns = [
         {
             key: 'date',
-            label: 'Date',
+            label: 'Created',
             render: (row) => (
                 <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
                     {formatDate(row.created_at)}
@@ -136,23 +172,30 @@ export default function Accounts() {
             )
         },
         {
+            key: 'month',
+            label: 'For Month',
+            render: (row) => (
+                row.month_number ? (
+                    <div>
+                        <span className="badge badge-primary">Month {row.month_number}</span>
+                        {row.due_date && (
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                Due: {formatDueDate(row.due_date)}
+                            </p>
+                        )}
+                    </div>
+                ) : (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Advance</span>
+                )
+            )
+        },
+        {
             key: 'source',
             label: 'Source',
             render: (row) => (
                 <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
                     {row.source.replace('_', ' ')}
                 </span>
-            )
-        },
-        {
-            key: 'month',
-            label: 'Month',
-            render: (row) => (
-                row.month_number ? (
-                    <span className="badge badge-primary">Month {row.month_number}</span>
-                ) : (
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Advance</span>
-                )
             )
         }
     ];
@@ -165,6 +208,11 @@ export default function Accounts() {
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         {row.chit_name} {row.month_number && `• Month ${row.month_number}`}
                     </p>
+                    {row.due_date && (
+                        <p style={{ fontSize: '0.7rem', color: 'var(--primary)', marginTop: '0.25rem' }}>
+                            Due: {formatDueDate(row.due_date)}
+                        </p>
+                    )}
                 </div>
                 <span style={{
                     fontWeight: 700,
@@ -174,7 +222,7 @@ export default function Accounts() {
                     {row.entry_type === 'debit' ? '+' : '-'}{formatCurrency(row.amount)}
                 </span>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className={`badge ${row.entry_type === 'debit' ? 'badge-danger' : 'badge-success'}`}>
                     {row.entry_type.toUpperCase()}
                 </span>
@@ -371,10 +419,49 @@ export default function Accounts() {
                         <option value="adjustment">Adjustment</option>
                     </select>
                 </div>
-                {(filters.entry_type || filters.source) && (
+                <div className="input-group" style={{ margin: 0, minWidth: '160px' }}>
+                    <select
+                        value={filters.chit_id}
+                        onChange={(e) => setFilters({ ...filters, chit_id: e.target.value })}
+                        className="input"
+                        style={{ paddingTop: '0.5rem', paddingBottom: '0.5rem' }}
+                    >
+                        <option value="">All Chits</option>
+                        {chits.map(c => (
+                            <option key={c.id} value={c.id}>{c.chit_name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="input-group" style={{ margin: 0, minWidth: '130px' }}>
+                    <select
+                        value={filters.month_number}
+                        onChange={(e) => setFilters({ ...filters, month_number: e.target.value })}
+                        className="input"
+                        style={{ paddingTop: '0.5rem', paddingBottom: '0.5rem' }}
+                    >
+                        <option value="">All Months</option>
+                        {monthOptions.map(m => (
+                            <option key={m} value={m}>Month {m}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="input-group" style={{ margin: 0, minWidth: '110px' }}>
+                    <select
+                        value={filters.year}
+                        onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+                        className="input"
+                        style={{ paddingTop: '0.5rem', paddingBottom: '0.5rem' }}
+                    >
+                        <option value="">All Years</option>
+                        {yearOptions.map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
+                </div>
+                {(filters.entry_type || filters.source || filters.month_number || filters.year || filters.chit_id) && (
                     <button
                         className="btn btn-secondary btn-sm"
-                        onClick={() => setFilters({ entry_type: '', source: '' })}
+                        onClick={() => setFilters({ entry_type: '', source: '', month_number: '', year: '', chit_id: '' })}
                     >
                         Clear Filters
                     </button>

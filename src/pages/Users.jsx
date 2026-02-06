@@ -45,11 +45,19 @@ export default function Users() {
         setSaving(true);
 
         try {
+            // Prepare data - convert empty strings to null for optional fields
+            const userData = {
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email || null,
+                address: formData.address || null
+            };
+
             if (editUser) {
-                await api.put(`/users/${editUser.id}`, formData);
+                await api.put(`/users/${editUser.id}`, userData);
                 toast.success('User updated successfully');
             } else {
-                await api.post('/users', formData);
+                await api.post('/users', userData);
                 toast.success('User created successfully');
             }
             setShowModal(false);

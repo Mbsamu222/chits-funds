@@ -30,8 +30,15 @@ export default function Reports() {
             ]);
             setDashboardData(dashboardRes.data);
             setChitProfits(chitsRes.data);
-            setMonthlyProfits(monthlyRes.data);
+            
+            // Handle both array response and object with months property
+            const monthlyData = Array.isArray(monthlyRes.data) 
+                ? monthlyRes.data 
+                : (monthlyRes.data?.months || []);
+            console.log('[DEBUG] Monthly data:', monthlyData);
+            setMonthlyProfits(monthlyData);
         } catch (error) {
+            console.error('[DEBUG] Reports error:', error);
             toast.error('Failed to load reports');
         } finally {
             setLoading(false);

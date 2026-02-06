@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     FiUserPlus, FiDollarSign, FiCalendar, FiTrash2,
-    FiArrowLeft, FiUsers, FiCheck, FiClock
+    FiArrowLeft, FiUsers, FiCheck, FiClock, FiPrinter
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import Modal from '../components/Modal';
+import PamphletGenerator from '../components/PamphletGenerator';
 
 export default function ChitDetail() {
     const { id } = useParams();
@@ -24,6 +25,7 @@ export default function ChitDetail() {
     const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
     const [isAuctionModalOpen, setIsAuctionModalOpen] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState(null);
+    const [showPamphlet, setShowPamphlet] = useState(null);
 
     // Form states
     const [memberForm, setMemberForm] = useState({ user_id: '', slot_number: '' });
@@ -74,7 +76,11 @@ export default function ChitDetail() {
     const handleAddMember = async (e) => {
         e.preventDefault();
         try {
-            await api.post(`/chits/${id}/members`, memberForm);
+            const data = {
+                user_id: parseInt(memberForm.user_id),
+                slot_number: parseInt(memberForm.slot_number)
+            };
+            await api.post(`/chits/${id}/members`, data);
             toast.success('Member added successfully');
             setIsAddMemberModalOpen(false);
             setMemberForm({ user_id: '', slot_number: '' });
@@ -111,7 +117,15 @@ export default function ChitDetail() {
     const handleAuctionSubmit = async (e) => {
         e.preventDefault();
         try {
-            await api.put(`/chits/${id}/months/${selectedMonth.month_number}`, auctionForm);
+            // Convert form data to proper types for API
+            const data = {
+                auction_date: auctionForm.auction_date || null,
+                winner_user_id: auctionForm.winner_user_id ? parseInt(auctionForm.winner_user_id) : null,
+                payout_amount: auctionForm.payout_amount ? parseFloat(auctionForm.payout_amount) : null,
+                admin_profit: auctionForm.admin_profit ? parseFloat(auctionForm.admin_profit) : null,
+                status: auctionForm.status || 'completed'
+            };
+            await api.put(`/chits/${id}/months/${selectedMonth.month_number}`, data);
             toast.success('Auction recorded successfully');
             setIsAuctionModalOpen(false);
             fetchChitDetails();
@@ -481,6 +495,13 @@ export default function ChitDetail() {
                                                 +{formatCurrency(month.admin_profit)}
                                             </span>
                                         </div>
+                                        <button
+                                            onClick={() => setShowPamphlet(month.month_number)}
+                                            className="btn btn-sm btn-secondary"
+                                            style={{ width: '100%', marginTop: '0.75rem' }}
+                                        >
+                                            <FiPrinter size={14} /> Print Pamphlet
+                                        </button>
                                     </div>
                                 ) : (
                                     <div style={{ textAlign: 'center', padding: '1rem 0' }}>
@@ -641,6 +662,16 @@ export default function ChitDetail() {
                     }
                 }
             `}</style>
+
+            {/* Pamphlet Generator Modal */}
+            {showPamphlet && (
+                <PamphletGenerator
+                    chitId={id}
+                    monthNumber={showPamphlet}
+                    chitName={chit.chit_name}
+                    onClose={() => setShowPamphlet(null)}
+                />
+            )}
         </div>
     );
 }

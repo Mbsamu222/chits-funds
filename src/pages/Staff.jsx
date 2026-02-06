@@ -58,7 +58,14 @@ export default function Staff() {
         setSaving(true);
 
         try {
-            await api.post('/staff', formData);
+            const staffData = {
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email || null,
+                password: formData.password,
+                role: formData.role
+            };
+            await api.post('/staff', staffData);
             toast.success('Staff created successfully');
             setShowModal(false);
             resetForm();

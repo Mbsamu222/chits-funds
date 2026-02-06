@@ -74,21 +74,27 @@ export default function Payments() {
         setSaving(true);
 
         try {
-            const data = new FormData();
-            data.append('user_id', formData.user_id);
-            data.append('chit_id', formData.chit_id);
-            data.append('month_number', formData.month_number);
-            data.append('amount_paid', formData.amount_paid);
-            data.append('payment_mode', formData.payment_mode);
-            data.append('notes', formData.notes);
+            // Send payment data as JSON
+            const paymentData = {
+                user_id: parseInt(formData.user_id),
+                chit_id: parseInt(formData.chit_id),
+                amount_paid: parseFloat(formData.amount_paid),
+                payment_mode: formData.payment_mode,
+                notes: formData.notes || null
+            };
 
-            if (screenshot) {
-                data.append('screenshot', screenshot);
+            // Create payment first
+            const response = await api.post('/payments', paymentData);
+            const paymentId = response.data.id;
+
+            // Upload screenshot separately if provided
+            if (screenshot && paymentId) {
+                const formDataWithFile = new FormData();
+                formDataWithFile.append('file', screenshot);
+                await api.post(`/payments/${paymentId}/upload-screenshot`, formDataWithFile, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
             }
-
-            await api.post('/payments', data, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
 
             toast.success('Payment recorded successfully');
             setShowModal(false);
