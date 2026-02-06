@@ -259,7 +259,13 @@ async def add_chit_member(
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Add a member to a chit (Admin only)"""
+    """Add a member to a chit (Admin only)
+    
+    This also creates DEBIT entries (dues) for all months in the AccountLedger,
+    ensuring proper tracking of what each member owes.
+    """
+    from models.account_ledger import AccountLedger, EntryType, LedgerSource
+    
     chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
     if not chit:
@@ -317,13 +323,41 @@ async def add_chit_member(
     db.commit()
     db.refresh(member)
     
+    # === CREATE MONTHLY DUE ENTRIES ===
+    # Get all months for this chit
+    chit_months = db.query(ChitMonth).filter(
+        ChitMonth.chit_id == chit_id
+    ).order_by(ChitMonth.month_number).all()
+    
+    # Create DEBIT entry for each month (due amount)
+    monthly_due = float(chit.monthly_amount)
+    
+    for month in chit_months:
+        ledger_entry = AccountLedger(
+            user_id=data.user_id,
+            chit_id=chit_id,
+            chit_month_id=month.id,
+            entry_type=EntryType.DEBIT,
+            amount=monthly_due,
+            source=LedgerSource.MONTHLY_DUE,
+            reference_id=month.id,
+            reference_type="chit_month",
+            notes=f"Monthly due for Month {month.month_number}",
+            created_by=current_staff.id
+        )
+        db.add(ledger_entry)
+    
+    db.commit()
+    print(f"✅ Created {len(chit_months)} monthly due entries for user {user.name} in chit {chit.chit_name}")
+    
     return {
         "id": member.id,
         "chit_id": member.chit_id,
         "user_id": member.user_id,
         "user_name": user.name,
         "slot_number": member.slot_number,
-        "join_date": member.join_date
+        "join_date": member.join_date,
+        "monthly_dues_created": len(chit_months)
     }
 
 

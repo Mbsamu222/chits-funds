@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 from datetime import datetime
 
@@ -13,6 +13,20 @@ class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     address: Optional[str] = None
 
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_str_to_none_email(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('address', mode='before')
+    @classmethod
+    def empty_str_to_none_address(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
 
 class UserCreate(UserBase):
     pass
@@ -24,6 +38,21 @@ class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     address: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_str_to_none_email(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('address', mode='before')
+    @classmethod
+    def empty_str_to_none_address(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
 
 
 class UserResponse(UserBase):
@@ -53,6 +82,13 @@ class StaffBase(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15)
     email: Optional[EmailStr] = None
 
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_str_to_none_email(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
 
 class StaffCreate(StaffBase):
     password: str = Field(..., min_length=6)
@@ -64,6 +100,14 @@ class StaffUpdate(BaseModel):
     phone: Optional[str] = Field(None, min_length=10, max_length=15)
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = None
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def empty_str_to_none_email(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
 
 
 class StaffResponse(StaffBase):
@@ -164,6 +208,20 @@ class ChitMonthCreate(ChitMonthBase):
     winner_user_id: Optional[int] = None
     payout_amount: Optional[float] = None
 
+    @field_validator('auction_date', mode='before')
+    @classmethod
+    def empty_str_to_none_date(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('winner_user_id', 'payout_amount', mode='before')
+    @classmethod
+    def empty_str_to_none_numeric(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
 
 class ChitMonthUpdate(BaseModel):
     auction_date: Optional[str] = None
@@ -171,6 +229,20 @@ class ChitMonthUpdate(BaseModel):
     payout_amount: Optional[float] = None
     admin_profit: Optional[float] = None
     status: Optional[str] = None
+
+    @field_validator('auction_date', 'status', mode='before')
+    @classmethod
+    def empty_str_to_none_str(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('winner_user_id', 'payout_amount', 'admin_profit', mode='before')
+    @classmethod
+    def empty_str_to_none_numeric(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
 
 
 class ChitMonthResponse(ChitMonthBase):
@@ -200,9 +272,24 @@ class PaymentBase(BaseModel):
     payment_mode: str = "cash"  # "cash" or "gpay"
     notes: Optional[str] = None
 
+    @field_validator('chit_month_id', mode='before')
+    @classmethod
+    def empty_str_to_none_month_id(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
+    @field_validator('notes', mode='before')
+    @classmethod
+    def empty_str_to_none_notes(cls, v):
+        if v == '' or v is None:
+            return None
+        return v
+
 
 class PaymentCreate(PaymentBase):
     pass
+
 
 
 class PaymentResponse(PaymentBase):

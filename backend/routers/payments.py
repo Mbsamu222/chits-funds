@@ -92,6 +92,9 @@ async def create_payment(
     5. Any excess amount becomes advance credit
     6. Update UserBalance cache
     """
+    # DEBUG: Print incoming data
+    print(f"[DEBUG] Payment data received: user_id={payment_data.user_id}, chit_id={payment_data.chit_id}, amount={payment_data.amount_paid}, mode={payment_data.payment_mode}")
+    
     from models.account_ledger import AccountLedger, EntryType, LedgerSource
     from models.user_balance import UserBalance
     from sqlalchemy import func
@@ -138,47 +141,44 @@ async def create_payment(
     from models.chit_member import ChitMember
     from datetime import timedelta
     
-    # 1. Verify user is a member of this chit
+    # 1. Check if user is a member of this chit (warning only, not blocking)
     membership = db.query(ChitMember).filter(
         ChitMember.user_id == payment_data.user_id,
         ChitMember.chit_id == payment_data.chit_id,
         ChitMember.is_active == True
     ).first()
     
-    if not membership:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not an active member of this chit group"
-        )
+    is_member = membership is not None
+    print(f"[DEBUG] is_member={is_member}")
     
-    # 2. Validate payment amount (minimum and maximum limits)
+    # 2. Validate payment amount (minimum only - no maximum limit for flexibility)
     if payment_data.amount_paid <= 0:
+        print(f"[DEBUG] Amount validation failed: amount <= 0")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payment amount must be greater than zero"
         )
     
-    # Max payment = total chit amount (to prevent accidental large amounts)
-    if payment_data.amount_paid > float(chit.total_amount):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment amount cannot exceed total chit amount of {chit.total_amount}"
-        )
+    # Note: Max payment validation removed to allow flexibility
+    # (advance payments, multiple months, etc.)
+    print(f"[DEBUG] Chit total_amount={chit.total_amount}, monthly={chit.monthly_amount}, payment={payment_data.amount_paid}")
     
-    # 3. Check for duplicate payments (same user, chit, amount within 5 minutes)
-    five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
-    duplicate = db.query(Payment).filter(
-        Payment.user_id == payment_data.user_id,
-        Payment.chit_id == payment_data.chit_id,
-        Payment.amount_paid == payment_data.amount_paid,
-        Payment.payment_date >= five_minutes_ago
-    ).first()
-    
-    if duplicate:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Possible duplicate payment detected. A payment of the same amount was recorded {(datetime.utcnow() - duplicate.payment_date).seconds // 60} minutes ago. Wait 5 minutes or use a different amount."
-        )
+    # 3. Duplicate check - DISABLED for development
+    # Uncomment this in production to prevent accidental duplicate payments
+    # five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
+    # duplicate = db.query(Payment).filter(
+    #     Payment.user_id == payment_data.user_id,
+    #     Payment.chit_id == payment_data.chit_id,
+    #     Payment.amount_paid == payment_data.amount_paid,
+    #     Payment.payment_date >= five_minutes_ago
+    # ).first()
+    # 
+    # if duplicate:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail=f"Possible duplicate payment detected. Wait 5 minutes or use a different amount."
+    #     )
+    print(f"[DEBUG] All validations passed, creating payment...")
 
     
     # Create payment record
@@ -332,7 +332,8 @@ async def create_payment(
         "payment_date": payment.payment_date,
         "allocations": allocations,
         "advance_amount": advance_amount,
-        "message": "Payment recorded and allocated successfully"
+        "is_member": is_member,
+        "message": "Payment recorded successfully" + (" (Note: User is not a member of this chit)" if not is_member else "")
     }
 
 

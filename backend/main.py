@@ -15,7 +15,8 @@ from routers import (
     chits_router,
     payments_router,
     reports_router,
-    accounts_router
+    accounts_router,
+    pamphlet_router
 )
 from config import settings
 
@@ -65,6 +66,30 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Add exception handlers for debugging
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"[VALIDATION ERROR] {exc.errors()}")
+    print(f"[VALIDATION ERROR] Body: {exc.body}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": str(exc.body)}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    print(f"[GENERAL ERROR] {type(exc).__name__}: {exc}")
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)}
+    )
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -91,6 +116,7 @@ app.include_router(chits_router)
 app.include_router(payments_router)
 app.include_router(reports_router)
 app.include_router(accounts_router)
+app.include_router(pamphlet_router)
 
 
 @app.get("/")

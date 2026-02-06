@@ -81,7 +81,7 @@ async def get_profit_by_chits(
             "completed_months": completed,
             "total_collected": float(collected),
             "total_payout": float(payout),
-            "profit": float(collected) - float(payout),
+            "total_profit": float(collected) - float(payout),
             "is_active": chit.is_active
         })
     
@@ -156,24 +156,20 @@ async def get_monthly_profit(
     db: Session = Depends(get_db)
 ):
     """Get month-wise profit report (Admin only)"""
-    # Default to current year
-    if not year:
-        year = datetime.now().year
+    # Get all payments (no year filter for now to show all data)
+    payments = db.query(Payment).all()
     
-    # Get all payments grouped by month
-    payments = db.query(Payment).filter(
-        func.extract('year', Payment.payment_date) == year
-    ).all()
-    
-    # Group payments by month
+    # Group payments by year-month
     monthly_data = {}
     for p in payments:
-        month_key = p.payment_date.strftime("%Y-%m")
-        if month_key not in monthly_data:
-            monthly_data[month_key] = {"collected": 0, "payout": 0}
-        monthly_data[month_key]["collected"] += float(p.amount_paid)
+        year_val = p.payment_date.year
+        month_val = p.payment_date.month
+        key = (year_val, month_val)
+        if key not in monthly_data:
+            monthly_data[key] = {"collected": 0, "payout": 0}
+        monthly_data[key]["collected"] += float(p.amount_paid)
     
-    # Get payouts by month
+    # Get payouts by month (based on auction_date)
     payouts = db.query(ChitMonth).filter(
         ChitMonth.status == MonthStatus.COMPLETED,
         ChitMonth.auction_date != None
@@ -181,31 +177,36 @@ async def get_monthly_profit(
     
     for payout in payouts:
         if payout.auction_date:
-            month_key = payout.auction_date.strftime("%Y-%m")
-            if month_key not in monthly_data:
-                monthly_data[month_key] = {"collected": 0, "payout": 0}
-            monthly_data[month_key]["payout"] += float(payout.payout_amount or 0)
+            try:
+                # Handle both string and date objects
+                if isinstance(payout.auction_date, str):
+                    date_parts = payout.auction_date.split('-')
+                    year_val = int(date_parts[0])
+                    month_val = int(date_parts[1])
+                else:
+                    year_val = payout.auction_date.year
+                    month_val = payout.auction_date.month
+                
+                key = (year_val, month_val)
+                if key not in monthly_data:
+                    monthly_data[key] = {"collected": 0, "payout": 0}
+                monthly_data[key]["payout"] += float(payout.payout_amount or 0)
+            except:
+                pass  # Skip invalid dates
     
-    # Format result
+    # Format result as flat array with year and month as separate fields
     result = []
-    for month_key in sorted(monthly_data.keys()):
-        data = monthly_data[month_key]
+    for (year_val, month_val) in sorted(monthly_data.keys(), reverse=True):
+        data = monthly_data[(year_val, month_val)]
         result.append({
-            "month": month_key,
+            "year": year_val,
+            "month": month_val,
             "total_collected": data["collected"],
-            "total_payout": data["payout"],
+            "total_payouts": data["payout"],
             "profit": data["collected"] - data["payout"]
         })
     
-    return {
-        "year": year,
-        "months": result,
-        "total": {
-            "collected": sum(m["total_collected"] for m in result),
-            "payout": sum(m["total_payout"] for m in result),
-            "profit": sum(m["profit"] for m in result)
-        }
-    }
+    return result
 
 
 @router.get("/dashboard")
@@ -219,12 +220,33 @@ async def get_admin_dashboard(
     # Counts
     total_users = db.query(User).filter(User.is_active == True).count()
     total_staff = db.query(Staff).filter(Staff.is_active == True).count()
-    total_chits = db.query(Chit).filter(Chit.is_active == True).count()
+    active_chits = db.query(Chit).filter(Chit.is_active == True).count()
     
     # Financial summary
     total_collected = db.query(func.sum(Payment.amount_paid)).scalar() or 0
     total_payout = db.query(func.sum(ChitMonth.payout_amount)).filter(
         ChitMonth.status == MonthStatus.COMPLETED
+    ).scalar() or 0
+    total_profit = float(total_collected) - float(total_payout)
+    
+    # This month's collection
+    current_month = datetime.now().month
+    current_year = datetime.now().year
+    monthly_collection = db.query(func.sum(Payment.amount_paid)).filter(
+        func.extract('month', Payment.payment_date) == current_month,
+        func.extract('year', Payment.payment_date) == current_year
+    ).scalar() or 0
+    
+    # Pending amount (simplified - could be calculated from user balances)
+    pending_months = db.query(ChitMonth).filter(
+        ChitMonth.status == MonthStatus.PENDING
+    ).count()
+    
+    # Calculate pending amount from pending months
+    pending_amount = db.query(func.sum(Chit.monthly_amount)).join(
+        ChitMonth, ChitMonth.chit_id == Chit.id
+    ).filter(
+        ChitMonth.status == MonthStatus.PENDING
     ).scalar() or 0
     
     # Recent activity
@@ -245,22 +267,16 @@ async def get_admin_dashboard(
             "date": p.payment_date
         })
     
-    # Pending months count
-    pending_months = db.query(ChitMonth).filter(
-        ChitMonth.status == MonthStatus.PENDING
-    ).count()
-    
+    # Return flat structure matching frontend expectations
     return {
-        "stats": {
-            "total_users": total_users,
-            "total_staff": total_staff,
-            "total_chits": total_chits,
-            "pending_months": pending_months
-        },
-        "financial": {
-            "total_collected": float(total_collected),
-            "total_payout": float(total_payout),
-            "total_profit": float(total_collected) - float(total_payout)
-        },
+        "total_users": total_users,
+        "total_staff": total_staff,
+        "active_chits": active_chits,
+        "total_collected": float(total_collected),
+        "total_payout": float(total_payout),
+        "total_profit": total_profit,
+        "monthly_collection": float(monthly_collection),
+        "pending_amount": float(pending_amount),
+        "pending_months": pending_months,
         "recent_payments": recent_payment_list
     }

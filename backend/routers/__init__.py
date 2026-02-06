@@ -5,6 +5,7 @@ from routers.staff import router as staff_router
 from routers.payments import router as payments_router
 from routers.reports import router as reports_router
 from routers.accounts import router as accounts_router
+from routers.pamphlet import router as pamphlet_router
 
 __all__ = [
     "chits_router",
@@ -14,5 +15,6 @@ __all__ = [
     "payments_router",
     "reports_router",
     "accounts_router",
+    "pamphlet_router",
 ]
 
