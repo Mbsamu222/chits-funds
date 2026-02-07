@@ -103,9 +103,39 @@ export default function Users() {
                     </div>
                     <div>
                         <p style={{ fontWeight: 600, color: 'var(--text)' }}>{row.name}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <FiPhone size={10} /> {row.phone}
-                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                            <a
+                                href={`tel:${row.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    color: 'var(--primary)',
+                                    textDecoration: 'none',
+                                    cursor: 'pointer'
+                                }}
+                                title="Call"
+                            >
+                                <FiPhone size={10} /> {row.phone}
+                            </a>
+                            <span style={{ color: 'var(--text-dim)' }}>|</span>
+                            <a
+                                href={`https://wa.me/91${row.phone.replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                    color: '#25D366',
+                                    textDecoration: 'none',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 500
+                                }}
+                                title="WhatsApp"
+                            >
+                                WhatsApp
+                            </a>
+                        </div>
                     </div>
                 </div>
             )
@@ -169,8 +199,26 @@ export default function Users() {
                 <p style={{ fontWeight: 700, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {row.name}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                    <FiPhone size={12} /> {row.phone}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                    <a
+                        href={`tel:${row.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)', textDecoration: 'none' }}
+                        title="Call"
+                    >
+                        <FiPhone size={12} /> {row.phone}
+                    </a>
+                    <span style={{ color: 'var(--text-dim)' }}>|</span>
+                    <a
+                        href={`https://wa.me/91${row.phone.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: '#25D366', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 500 }}
+                        title="WhatsApp"
+                    >
+                        WhatsApp
+                    </a>
                 </div>
                 {row.email && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
@@ -307,8 +355,17 @@ export default function Users() {
                 searchValue={searchValue}
                 onSearchChange={setSearchValue}
                 onRowClick={(row) => navigate(`/users/${row.id}`)}
-                emptyMessage="No users found"
+                emptyMessage={users.length === 0 ? "No users yet" : "No users match your search"}
                 emptyIcon={<FiUsers size={32} />}
+                emptyAction={users.length === 0 && isAdmin() && (
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="btn btn-primary"
+                        style={{ marginTop: '1rem' }}
+                    >
+                        <FiPlus /> Add First User
+                    </button>
+                )}
                 mobileCardRender={mobileCardRender}
             />
 

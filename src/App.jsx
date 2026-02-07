@@ -12,6 +12,7 @@ import ChitDetail from './pages/ChitDetail';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
 import Accounts from './pages/Accounts';
+import Auctions from './pages/Auctions';
 import Settings from './pages/Settings';
 
 // Protected Route Component
@@ -76,6 +77,7 @@ function AppRoutes() {
         <Route path="chits/:id" element={<ChitDetail />} />
         <Route path="payments" element={<Payments />} />
         <Route path="accounts" element={<Accounts />} />
+        <Route path="auctions" element={<Auctions />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
       </Route>

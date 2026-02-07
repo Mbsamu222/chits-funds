@@ -10,6 +10,7 @@ export default function DataTable({
     onRowClick,
     emptyMessage = "No data found",
     emptyIcon = null,
+    emptyAction = null, // Custom action button for empty state
     mobileCardRender = null // Custom render function for mobile cards
 }) {
     const [viewMode, setViewMode] = useState(
@@ -39,6 +40,7 @@ export default function DataTable({
             </div>
             <h3 className="empty-state-title">No Results</h3>
             <p className="empty-state-text">{emptyMessage}</p>
+            {emptyAction && <div style={{ marginTop: '1rem' }}>{emptyAction}</div>}
         </div>
     );
 

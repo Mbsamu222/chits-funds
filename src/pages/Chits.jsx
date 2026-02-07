@@ -233,6 +233,15 @@ export default function Chits() {
                     <p className="empty-state-text">
                         {searchValue ? 'No groups match your search' : 'Create your first chit group to get started'}
                     </p>
+                    {!searchValue && chits.length === 0 && isAdmin() && (
+                        <button
+                            onClick={() => { resetForm(); setShowModal(true); }}
+                            className="btn btn-primary"
+                            style={{ marginTop: '1rem' }}
+                        >
+                            <FiPlus /> Create First Chit Group
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>

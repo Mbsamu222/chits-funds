@@ -32,6 +32,7 @@ class ChitMonth(Base):
     chit = relationship("Chit", back_populates="months")
     winner = relationship("User", back_populates="won_months")
     payments = relationship("Payment", back_populates="chit_month")
+    auctions = relationship("Auction", back_populates="chit_month")
     
     def __repr__(self):
         return f"<ChitMonth(chit_id={self.chit_id}, month={self.month_number}, status={self.status})>"

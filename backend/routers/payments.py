@@ -443,3 +443,72 @@ async def get_payment(
         "payment_date": payment.payment_date,
         "notes": payment.notes
     }
+
+
+@router.get("/{payment_id}/receipt/pdf")
+async def generate_receipt_pdf(
+    payment_id: int,
+    current_staff: Staff = Depends(get_current_staff),
+    db: Session = Depends(get_db)
+):
+    """Generate and download PDF receipt for a payment"""
+    from fastapi.responses import FileResponse
+    from services.pdf_generator import generate_payment_receipt
+    import tempfile
+    
+    # Get payment details
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found"
+        )
+    
+    # Staff can only generate receipts for their assigned users' payments
+    if not current_staff.is_admin():
+        allowed_user_ids = get_staff_user_ids(current_staff, db)
+        if payment.user_id not in allowed_user_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have access to this payment"
+            )
+    
+    # Fetch related data
+    user = db.query(User).filter(User.id == payment.user_id).first()
+    chit = db.query(Chit).filter(Chit.id == payment.chit_id).first()
+    
+    month_num = 0
+    total_months = chit.total_months if chit else 0
+    if payment.chit_month_id:
+        month = db.query(ChitMonth).filter(ChitMonth.id == payment.chit_month_id).first()
+        month_num = month.month_number if month else 0
+    
+    # Prepare data for PDF
+    payment_data = {
+        "receipt_no": f"RCP{payment.id:06d}",
+        "payment_date": payment.payment_date.strftime('%d %b %Y'),
+        "payer_name": user.name if user else "Unknown",
+        "payer_phone": user.phone if user else "",
+        "user_id": payment.user_id,
+        "chit_name": chit.chit_name if chit else "Unknown",
+        "month_number": month_num,
+        "total_months": total_months,
+        "amount": float(payment.amount_paid),
+        "payment_method": payment.payment_mode.value,
+        "status": "paid",
+        "notes": payment.notes or ""
+    }
+    
+    # Generate PDF in temp directory
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    pdf_path = generate_payment_receipt(payment_data, temp_file.name)
+    
+    # Return PDF as download
+    return FileResponse(
+        pdf_path,
+        media_type='application/pdf',
+        filename=f'receipt_{payment.id}.pdf',
+        headers={"Content-Disposition": f"attachment; filename=receipt_{payment.id}.pdf"}
+    )
+

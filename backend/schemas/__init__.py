@@ -178,7 +178,7 @@ class ChitResponse(ChitBase):
 
 class ChitMemberAdd(BaseModel):
     user_id: int
-    slot_number: int = Field(..., ge=1, le=100)
+    slot_number: Optional[int] = None  # Auto-assign if not provided
 
 
 class ChitMemberResponse(BaseModel):

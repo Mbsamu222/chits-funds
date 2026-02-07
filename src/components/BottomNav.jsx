@@ -2,7 +2,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
     FiHome, FiUsers, FiGrid, FiDollarSign,
-    FiPieChart
+    FiPieChart, FiAward
 } from 'react-icons/fi';
 
 export default function BottomNav() {
@@ -10,10 +10,10 @@ export default function BottomNav() {
 
     const menuItems = [
         { icon: FiHome, label: 'Home', path: '/' },
-        { icon: FiUsers, label: 'Users', path: '/users' },
         { icon: FiGrid, label: 'Chits', path: '/chits' },
-        { icon: FiDollarSign, label: 'Payments', path: '/payments' },
-        { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true }
+        { icon: FiAward, label: 'Auctions', path: '/auctions' },
+        { icon: FiDollarSign, label: 'Pay', path: '/payments' },
+        { icon: FiPieChart, label: 'More', path: '/reports', adminOnly: true }
     ];
 
     const visibleItems = menuItems.filter(item => !item.adminOnly || isAdmin());

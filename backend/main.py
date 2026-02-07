@@ -6,7 +6,7 @@ import os
 from database import engine, Base
 from models import (
     User, Staff, StaffUser, Chit, ChitMember, ChitMonth, Payment, 
-    AccountLedger, UserBalance, PasswordResetToken, AuditLog
+    AccountLedger, UserBalance, PasswordResetToken, AuditLog, Auction, Bid
 )
 from routers import (
     auth_router,
@@ -16,7 +16,9 @@ from routers import (
     payments_router,
     reports_router,
     accounts_router,
-    pamphlet_router
+    pamphlet_router,
+    auctions_router,
+    defaulters_router
 )
 from config import settings
 
@@ -117,6 +119,8 @@ app.include_router(payments_router)
 app.include_router(reports_router)
 app.include_router(accounts_router)
 app.include_router(pamphlet_router)
+app.include_router(auctions_router)
+app.include_router(defaulters_router)
 
 
 @app.get("/")

@@ -294,24 +294,45 @@ async def add_chit_member(
             detail="User already in this chit"
         )
     
-    # Check if slot is taken
-    slot_taken = db.query(ChitMember).filter(
-        ChitMember.chit_id == chit_id,
-        ChitMember.slot_number == data.slot_number
-    ).first()
-    
-    if slot_taken:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Slot {data.slot_number} is already taken"
-        )
-    
-    # Validate slot number
-    if data.slot_number < 1 or data.slot_number > chit.total_months:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Slot number must be between 1 and {chit.total_months}"
-        )
+    # Auto-assign slot if not provided
+    if data.slot_number is None:
+        # Find next available slot
+        taken_slots = {m.slot_number for m in db.query(ChitMember).filter(
+            ChitMember.chit_id == chit_id
+        ).all()}
+        
+        slot_number = None
+        for i in range(1, chit.total_months + 1):
+            if i not in taken_slots:
+                slot_number = i
+                break
+        
+        if slot_number is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All slots are taken"
+            )
+    else:
+        slot_number = data.slot_number
+        
+        # Check if slot is taken
+        slot_taken = db.query(ChitMember).filter(
+            ChitMember.chit_id == chit_id,
+            ChitMember.slot_number == slot_number
+        ).first()
+        
+        if slot_taken:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Slot {slot_number} is already taken"
+            )
+        
+        # Validate slot number
+        if slot_number < 1 or slot_number > chit.total_months:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Slot number must be between 1 and {chit.total_months}"
+            )
     
     member = ChitMember(
         chit_id=chit_id,

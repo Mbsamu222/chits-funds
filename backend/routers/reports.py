@@ -280,3 +280,220 @@ async def get_admin_dashboard(
         "pending_months": pending_months,
         "recent_payments": recent_payment_list
     }
+
+
+@router.get("/analytics/collection-trends")
+async def get_collection_trends(
+    months: int = Query(6, description="Number of months to include"),
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get payment collection trends over time"""
+    from datetime import timedelta
+    from collections import defaultdict
+    
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=months * 30)
+    
+    payments = db.query(Payment).filter(
+        Payment.payment_date >= start_date
+    ).all()
+    
+    # Group by month
+    monthly_trends = defaultdict(lambda: {"count": 0, "amount": 0})
+    
+    for payment in payments:
+        month_key = payment.payment_date.strftime('%Y-%m')
+        monthly_trends[month_key]["count"] += 1
+        monthly_trends[month_key]["amount"] += float(payment.amount_paid)
+    
+    result = []
+    for month_key in sorted(monthly_trends.keys()):
+        data = monthly_trends[month_key]
+        result.append({
+            "month": month_key,
+            "count": data["count"],
+            "amount": data["amount"],
+            "average": data["amount"] / data["count"] if data["count"] > 0 else 0
+        })
+    
+    return result
+
+
+@router.get("/analytics/member-performance")
+async def get_member_performance(
+    chit_id: Optional[int] = None,
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get member payment performance analytics"""
+    from models.user import User
+    from models.user_balance import UserBalance
+    from models.chit_member import ChitMember
+    
+    # Get all members
+    query = db.query(ChitMember)
+    if chit_id:
+        query = query.filter(ChitMember.chit_id == chit_id)
+    
+    members = query.all()
+    
+    performance = []
+    for member in members:
+        user = db.query(User).filter(User.id == member.user_id).first()
+        if not user:
+            continue
+        
+        # Get payment count
+        payment_count = db.query(Payment).filter(
+            Payment.user_id == member.user_id,
+            Payment.chit_id == member.chit_id
+        ).count()
+        
+        # Get total paid
+        total_paid = db.query(func.sum(Payment.amount_paid)).filter(
+            Payment.user_id == member.user_id,
+            Payment.chit_id == member.chit_id
+        ).scalar() or 0
+        
+        # Get balance
+        balance = db.query(UserBalance).filter(
+            UserBalance.user_id == member.user_id,
+            UserBalance.chit_id == member.chit_id
+        ).first()
+        
+        # Calculate on-time payment percentage
+        total_months = db.query(ChitMonth).filter(
+            ChitMonth.chit_id == member.chit_id
+        ).count()
+        
+        on_time_rate = (payment_count / total_months * 100) if total_months > 0 else 0
+        
+        performance.append({
+            "user_id": user.id,
+            "user_name": user.name,
+            "chit_id": member.chit_id,
+            "total_payments": payment_count,
+            "total_paid": float(total_paid),
+            "pending": float(balance.pending) if balance else 0,
+            "on_time_rate": round(on_time_rate, 2),
+            "status": "excellent" if on_time_rate > 90 else "good" if on_time_rate > 70 else "poor"
+        })
+    
+    # Sort by on-time rate
+    performance.sort(key=lambda x: x["on_time_rate"], reverse=True)
+    
+    return performance
+
+
+@router.get("/analytics/payment-patterns")
+async def get_payment_patterns(
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Analyze payment patterns - mode, timing, amounts"""
+    
+    # Payment mode distribution
+    gpay_count = db.query(Payment).filter(Payment.payment_mode == "gpay").count()
+    cash_count = db.query(Payment).filter(Payment.payment_mode == "cash").count()
+    
+    # Day of week distribution
+    all_payments = db.query(Payment).all()
+    day_distribution = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0}  # Monday=0, Sunday=6
+    
+    for payment in all_payments:
+        day = payment.payment_date.weekday()
+        day_distribution[day] += 1
+    
+    # Average payment amount
+    avg_payment = db.query(func.avg(Payment.amount_paid)).scalar() or 0
+    
+    # Peak payment hours (if times are tracked)
+    hour_distribution = {}
+    for payment in all_payments:
+        hour = payment.payment_date.hour
+        hour_distribution[hour] = hour_distribution.get(hour, 0) + 1
+    
+    return {
+        "payment_modes": {
+            "gpay": gpay_count,
+            "cash": cash_count,
+            "gpay_percentage": (gpay_count / (gpay_count + cash_count) * 100) if (gpay_count + cash_count) > 0 else 0
+        },
+        "day_of_week": [
+            {"day": "Monday", "count": day_distribution[0]},
+            {"day": "Tuesday", "count": day_distribution[1]},
+            {"day": "Wednesday", "count": day_distribution[2]},
+            {"day": "Thursday", "count": day_distribution[3]},
+            {"day": "Friday", "count": day_distribution[4]},
+            {"day": "Saturday", "count": day_distribution[5]},
+            {"day": "Sunday", "count": day_distribution[6]}
+        ],
+        "average_payment": float(avg_payment),
+        "peak_hours": sorted(hour_distribution.items(), key=lambda x: x[1], reverse=True)[:5]
+    }
+
+
+@router.get("/analytics/comprehensive")
+async def get_comprehensive_analytics(
+    current_staff: Staff = Depends(require_admin),
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive analytics dashboard data"""
+    from models.user import User
+    from models.user_balance import UserBalance
+    
+    # Overall stats
+    total_users = db.query(User).filter(User.is_active == True).count()
+    total_chits = db.query(Chit).filter(Chit.is_active == True).count()
+    total_payments = db.query(Payment).count()
+    
+    # Financial overview
+    total_collected = db.query(func.sum(Payment.amount_paid)).scalar() or 0
+    total_payout = db.query(func.sum(ChitMonth.payout_amount)).filter(
+        ChitMonth.status == MonthStatus.COMPLETED
+    ).scalar() or 0
+    
+    # Defaulter stats
+    defaulters_count = db.query(UserBalance).filter(UserBalance.pending > 0).count()
+    total_pending = db.query(func.sum(UserBalance.pending)).scalar() or 0
+    
+    # Growth metrics
+    this_month = datetime.now().month
+    this_year = datetime.now().year
+    
+    new_users_this_month = db.query(User).filter(
+        func.extract('month', User.created_at) == this_month,
+        func.extract('year', User.created_at) == this_year
+    ).count()
+    
+    payments_this_month = db.query(Payment).filter(
+        func.extract('month', Payment.payment_date) == this_month,
+        func.extract('year', Payment.payment_date) == this_year
+    ).count()
+    
+    collection_this_month = db.query(func.sum(Payment.amount_paid)).filter(
+        func.extract('month', Payment.payment_date) == this_month,
+        func.extract('year', Payment.payment_date) == this_year
+    ).scalar() or 0
+    
+    return {
+        "overview": {
+            "total_users": total_users,
+            "total_chits": total_chits,
+            "total_payments": total_payments,
+            "defaulters_count": defaulters_count
+        },
+        "financial": {
+            "total_collected": float(total_collected),
+            "total_payout": float(total_payout),
+            "total_profit": float(total_collected) - float(total_payout),
+            "total_pending": float(total_pending)
+        },
+        "this_month": {
+            "new_users": new_users_this_month,
+            "payments": payments_this_month,
+            "collection": float(collection_this_month)
+        }
+    }
+

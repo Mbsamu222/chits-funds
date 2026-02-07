@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
     FiHome, FiUsers, FiGrid, FiDollarSign,
-    FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook, FiSettings
+    FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook, FiSettings, FiAward
 } from 'react-icons/fi';
 
 export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
@@ -14,6 +14,7 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
         { icon: FiUserCheck, label: 'Staff', path: '/staff', adminOnly: true },
         { icon: FiGrid, label: 'Chits', path: '/chits' },
         { icon: FiDollarSign, label: 'Payments', path: '/payments' },
+        { icon: FiAward, label: 'Auctions', path: '/auctions' },
         { icon: FiBook, label: 'Accounts', path: '/accounts', adminOnly: true },
         { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true },
         { icon: FiSettings, label: 'Settings', path: '/settings' }
