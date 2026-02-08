@@ -19,6 +19,9 @@ export default function Payments() {
     const [showModal, setShowModal] = useState(false);
     const [saving, setSaving] = useState(false);
     const [filterMode, setFilterMode] = useState('all');
+    const [duplicateData, setDuplicateData] = useState(null);
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+
 
     const [formData, setFormData] = useState({
         user_id: '',
@@ -69,8 +72,8 @@ export default function Payments() {
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const handleSubmit = async (e, forceDuplicate = false) => {
+        e?.preventDefault();
         setSaving(true);
 
         try {
@@ -78,9 +81,11 @@ export default function Payments() {
             const paymentData = {
                 user_id: parseInt(formData.user_id),
                 chit_id: parseInt(formData.chit_id),
+                month_number: formData.month_number ? parseInt(formData.month_number) : null,
                 amount_paid: parseFloat(formData.amount_paid),
                 payment_mode: formData.payment_mode,
-                notes: formData.notes || null
+                notes: formData.notes || null,
+                force_duplicate: forceDuplicate
             };
 
             // Create payment first
@@ -98,11 +103,28 @@ export default function Payments() {
 
             toast.success('Payment recorded successfully');
             setShowModal(false);
+            setShowDuplicateModal(false);
+            setDuplicateData(null);
             resetForm();
             fetchPayments();
         } catch (error) {
-            const message = error.response?.data?.detail || 'Failed to record payment';
-            toast.error(message);
+            // Check for duplicate detection (409 Conflict)
+            if (error.response?.status === 409) {
+                const detail = error.response?.data?.detail;
+                if (detail && detail.duplicates) {
+                    setDuplicateData({
+                        duplicates: detail.duplicates,
+                        message: detail.message
+                    });
+                    setShowDuplicateModal(true);
+                    setShowModal(false);
+                } else {
+                    toast.error('Duplicate payment detected');
+                }
+            } else {
+                const message = error.response?.data?.detail || 'Failed to record payment';
+                toast.error(message);
+            }
         } finally {
             setSaving(false);
         }
@@ -120,12 +142,64 @@ export default function Payments() {
         setScreenshot(null);
     };
 
+    const handleProceedWithDuplicate = async () => {
+        await handleSubmit(null, true);
+    };
+
+    const handleCancelDuplicate = () => {
+        setShowDuplicateModal(false);
+        setDuplicateData(null);
+        setShowModal(true); // Reopen the form
+    };
+
+
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('en-IN', {
             style: 'currency',
             currency: 'INR',
             maximumFractionDigits: 0
         }).format(amount || 0);
+    };
+
+    // Detect duplicate payments (same user + same chit + same month)
+    const getDuplicateIds = () => {
+        const duplicateMap = new Map();
+        
+        // Group payments by user_id + chit_id + month_number
+        payments.forEach(payment => {
+            const key = `${payment.user_id}-${payment.chit_id}-${payment.month_number || 'null'}`;
+            if (!duplicateMap.has(key)) {
+                duplicateMap.set(key, []);
+            }
+            duplicateMap.get(key).push(payment.id);
+        });
+        
+        // Get IDs of all duplicate payments (where count > 1)
+        const duplicateIds = new Set();
+        duplicateMap.forEach((ids) => {
+            if (ids.length > 1) {
+                ids.forEach(id => duplicateIds.add(id));
+            }
+        });
+        
+        return duplicateIds;
+    };
+
+    const duplicatePaymentIds = getDuplicateIds();
+
+    const handleDeletePayment = async (paymentId) => {
+        if (!window.confirm('Are you sure you want to delete this payment?')) {
+            return;
+        }
+
+        try {
+            await api.delete(`/payments/${paymentId}`);
+            toast.success('Payment deleted successfully');
+            fetchPayments();
+        } catch (error) {
+            const message = error.response?.data?.detail || 'Failed to delete payment';
+            toast.error(message);
+        }
     };
 
     const filteredPayments = payments.filter(p => {
@@ -150,8 +224,19 @@ export default function Payments() {
                     </div>
                     <div>
                         <p style={{ fontWeight: 500, fontSize: '0.875rem' }}>{row.user_name}</p>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.chit_name}</p>
                     </div>
+                </div>
+            )
+        },
+        {
+            key: 'chit',
+            label: 'Chit & Month',
+            render: (row) => (
+                <div>
+                    <p style={{ fontWeight: 600, fontSize: '0.875rem' }}>{row.chit_name}</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Month {row.month_number || 'N/A'}
+                    </p>
                 </div>
             )
         },
@@ -165,16 +250,9 @@ export default function Payments() {
             )
         },
         {
-            key: 'month',
-            label: 'Month',
-            className: 'hidden sm:table-cell',
-            render: (row) => (
-                <span className="badge badge-primary">M{row.month_number}</span>
-            )
-        },
-        {
             key: 'mode',
             label: 'Mode',
+            className: 'hidden sm:table-cell',
             render: (row) => (
                 <span className={`badge ${row.payment_mode === 'gpay' ? 'badge-info' : 'badge-secondary'}`}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -185,7 +263,7 @@ export default function Payments() {
         },
         {
             key: 'date',
-            label: 'Date',
+            label: 'Payment Date',
             className: 'hidden md:table-cell',
             render: (row) => (
                 <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
@@ -212,6 +290,20 @@ export default function Payments() {
                     <FiCamera size={16} />
                 </a>
             )
+        },
+        {
+            key: 'actions',
+            label: '',
+            render: (row) => duplicatePaymentIds.has(row.id) && (
+                <button
+                    onClick={() => handleDeletePayment(row.id)}
+                    className="btn btn-icon-sm btn-ghost"
+                    title="Delete Duplicate Payment"
+                    style={{ color: 'var(--danger)' }}
+                >
+                    <FiX size={18} />
+                </button>
+            )
         }
     ];
 
@@ -227,16 +319,37 @@ export default function Payments() {
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{row.chit_name}</p>
                     </div>
                 </div>
-                <p style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--success)' }}>
-                    {formatCurrency(row.amount_paid)}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <p style={{ fontWeight: 700, fontSize: '1.125rem', color: 'var(--success)' }}>
+                        {formatCurrency(row.amount_paid)}
+                    </p>
+                    {duplicatePaymentIds.has(row.id) && (
+                        <button
+                            onClick={() => handleDeletePayment(row.id)}
+                            className="btn btn-icon-sm"
+                            title="Delete Duplicate"
+                            style={{ 
+                                color: 'var(--danger)',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)'
+                            }}
+                        >
+                            <FiX size={16} />
+                        </button>
+                    )}
+                </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                     <span className="badge badge-primary">Month {row.month_number}</span>
                     <span className={`badge ${row.payment_mode === 'gpay' ? 'badge-info' : 'badge-secondary'}`}>
                         {row.payment_mode.toUpperCase()}
                     </span>
+                    {duplicatePaymentIds.has(row.id) && (
+                        <span className="badge badge-danger" style={{ fontSize: '0.65rem' }}>
+                            DUPLICATE
+                        </span>
+                    )}
                 </div>
                 <span style={{ color: 'var(--text-muted)' }}>
                     {new Date(row.payment_date).toLocaleDateString('en-IN', {
@@ -572,6 +685,106 @@ export default function Payments() {
                         )}
                     </div>
                 </form>
+            </Modal>
+
+            {/* Duplicate Confirmation Modal */}
+            <Modal
+                isOpen={showDuplicateModal}
+                onClose={() => {
+                    setShowDuplicateModal(false);
+                    setDuplicateData(null);
+                }}
+                title="⚠️ Duplicate Payment Detected"
+                size="lg"
+                footer={
+                    <>
+                        <button 
+                            onClick={handleCancelDuplicate} 
+                            className="btn btn-secondary"
+                        >
+                            Cancel & Edit
+                        </button>
+                        <button 
+                            onClick={handleProceedWithDuplicate} 
+                            disabled={saving} 
+                            className="btn btn-danger"
+                        >
+                            {saving ? <div className="spinner spinner-sm" /> : 'Proceed Anyway'}
+                        </button>
+                    </>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{
+                        padding: '1rem',
+                        borderRadius: '0.75rem',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)'
+                    }}>
+                        <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                            A similar payment was already recorded in the last 5 minutes. Are you sure you want to proceed with this duplicate payment?
+                        </p>
+                    </div>
+
+                    {duplicateData?.duplicates && duplicateData.duplicates.length > 0 && (
+                        <div>
+                            <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-muted)' }}>
+                                EXISTING PAYMENT{duplicateData.duplicates.length > 1 ? 'S' : ''}:
+                            </h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                {duplicateData.duplicates.map((dup, idx) => (
+                                    <div 
+                                        key={dup.id}
+                                        className="card"
+                                        style={{
+                                            padding: '1rem',
+                                            background: 'var(--surface-light)',
+                                            border: '1px solid rgba(255,255,255,0.1)'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontWeight: 700, color: 'var(--success)', fontSize: '1.125rem' }}>
+                                                {formatCurrency(dup.amount)}
+                                            </span>
+                                            <span className={`badge ${dup.payment_mode === 'gpay' ? 'badge-info' : 'badge-secondary'}`}>
+                                                {dup.payment_mode === 'gpay' ? <FiSmartphone size={10} /> : <FiCreditCard size={10} />}
+                                                {dup.payment_mode.toUpperCase()}
+                                            </span>
+                                        </div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                            <p>
+                                                <strong>Date:</strong> {new Date(dup.payment_date).toLocaleString('en-IN', {
+                                                    day: 'numeric',
+                                                    month: 'short',
+                                                    year: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                })}
+                                            </p>
+                                            {dup.notes && (
+                                                <p style={{ marginTop: '0.25rem' }}>
+                                                    <strong>Notes:</strong> {dup.notes}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div style={{
+                        padding: '0.75rem',
+                        borderRadius: '0.5rem',
+                        background: 'var(--surface-light)',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-muted)',
+                        lineHeight: '1.4'
+                    }}>
+                        💡 <strong>Tip:</strong> If this is a mistake, click "Cancel & Edit" to modify the payment details. 
+                        If you intentionally want to record this duplicate payment, click "Proceed Anyway".
+                    </div>
+                </div>
             </Modal>
         </div>
     );

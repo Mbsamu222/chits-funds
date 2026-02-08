@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 import {
     FiHome, FiUsers, FiGrid, FiDollarSign,
     FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook, FiSettings, FiAward

@@ -155,7 +155,7 @@ export default function Accounts() {
                 <span className={`badge ${row.entry_type === 'debit' ? 'badge-danger' : 'badge-success'}`}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                     {row.entry_type === 'debit' ? <FiArrowUpRight size={12} /> : <FiArrowDownRight size={12} />}
-                    {row.entry_type.toUpperCase()}
+                    {row.entry_type === 'debit' ? 'Money Owed' : 'Payment Received'}
                 </span>
             )
         },
@@ -167,7 +167,7 @@ export default function Accounts() {
                     fontWeight: 700,
                     color: row.entry_type === 'debit' ? 'var(--danger)' : 'var(--success)'
                 }}>
-                    {row.entry_type === 'debit' ? '+' : '-'}{formatCurrency(row.amount)}
+                    {formatCurrency(row.amount)}
                 </span>
             )
         },
@@ -219,12 +219,12 @@ export default function Accounts() {
                     fontSize: '1.125rem',
                     color: row.entry_type === 'debit' ? 'var(--danger)' : 'var(--success)'
                 }}>
-                    {row.entry_type === 'debit' ? '+' : '-'}{formatCurrency(row.amount)}
+                    {formatCurrency(row.amount)}
                 </span>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className={`badge ${row.entry_type === 'debit' ? 'badge-danger' : 'badge-success'}`}>
-                    {row.entry_type.toUpperCase()}
+                    {row.entry_type === 'debit' ? 'Money Owed' : 'Payment Received'}
                 </span>
                 <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
                     {row.source.replace('_', ' ')}
@@ -401,8 +401,8 @@ export default function Accounts() {
                         style={{ paddingTop: '0.5rem', paddingBottom: '0.5rem' }}
                     >
                         <option value="">All Types</option>
-                        <option value="debit">Debit (Dues)</option>
-                        <option value="credit">Credit (Payments)</option>
+                        <option value="debit">Money Owed</option>
+                        <option value="credit">Payment Received</option>
                     </select>
                 </div>
                 <div className="input-group" style={{ margin: 0, minWidth: '160px' }}>

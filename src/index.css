@@ -105,44 +105,44 @@
    ============================================ */
 
 .theme-light {
-  /* Backgrounds - Light */
-  --background: #f1f5f9;
-  --background-light: #e2e8f0;
-  --surface: #ffffff;
-  --surface-light: #f8fafc;
-  --surface-lighter: #e2e8f0;
-  --surface-glass: rgba(255, 255, 255, 0.95);
-  --surface-glass-light: rgba(255, 255, 255, 0.8);
+  /* Backgrounds - Soft, Warm Tones */
+  --background: #f8f9fa;
+  --background-light: #f0f2f5;
+  --surface: #fafbfc;
+  --surface-light: #f5f7fa;
+  --surface-lighter: #eef1f6;
+  --surface-glass: rgba(250, 251, 252, 0.85);
+  --surface-glass-light: rgba(255, 255, 255, 0.6);
 
-  /* Text - Dark for light theme */
-  --text: #0f172a;
-  --text-muted: #475569;
-  --text-dim: #64748b;
+  /* Text - Softer Dark */
+  --text: #1a202c;
+  --text-muted: #4a5568;
+  --text-dim: #718096;
 
-  /* Shadows - Lighter for light theme */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.15);
+  /* Shadows - Very Subtle */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.1);
   
-  /* Border colors */
-  --border-color: #e2e8f0;
-  --border-light: #cbd5e1;
+  /* Border colors - Soft */
+  --border-color: #e8eaed;
+  --border-light: #d1d5db;
 }
 
 .theme-light body {
-  background: #f1f5f9;
+  background: #f8f9fa;
   background-image:
-    radial-gradient(ellipse 80% 80% at 50% -20%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 60% at 100% 0%, rgba(236, 72, 153, 0.06) 0%, transparent 40%),
-    radial-gradient(ellipse 60% 60% at 0% 100%, rgba(20, 184, 166, 0.06) 0%, transparent 40%);
+    radial-gradient(ellipse 80% 80% at 50% -20%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 60% at 100% 0%, rgba(236, 72, 153, 0.03) 0%, transparent 40%),
+    radial-gradient(ellipse 60% 60% at 0% 100%, rgba(20, 184, 166, 0.03) 0%, transparent 40%);
 }
 
 /* ===== SIDEBAR LIGHT THEME ===== */
 .theme-light .sidebar {
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-right: 1px solid #e2e8f0;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
+  background: linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%);
+  border-right: 1px solid #e8eaed;
+  box-shadow: 1px 0 4px rgba(0, 0, 0, 0.03);
 }
 
 .theme-light .sidebar-header {
@@ -223,18 +223,18 @@
 
 /* ===== CARDS LIGHT THEME ===== */
 .theme-light .card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .theme-light .card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .theme-light .stat-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
 }
 
 /* ===== BUTTONS LIGHT THEME ===== */
@@ -265,9 +265,9 @@
 .theme-light input,
 .theme-light select,
 .theme-light textarea {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: #fafbfc;
+  border-color: #d1d5db;
+  color: #1a202c;
 }
 
 .theme-light .input:focus,
@@ -276,8 +276,8 @@
 .theme-light select:focus,
 .theme-light textarea:focus {
   border-color: #6366f1;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  background: #fafbfc;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
 }
 
 .theme-light .input::placeholder,
@@ -288,8 +288,8 @@
 
 /* ===== TABLE LIGHT THEME ===== */
 .theme-light .table-container {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
 }
 
 .theme-light th {
@@ -313,8 +313,8 @@
 
 /* ===== MODALS LIGHT THEME ===== */
 .theme-light .modal-content {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
 }
 
 .theme-light .modal-header {
@@ -370,8 +370,8 @@
 
 /* ===== MONTH CARDS LIGHT THEME ===== */
 .theme-light .month-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
 }
 
 .theme-light .month-card:hover {
@@ -385,9 +385,9 @@
 
 /* ===== DROPDOWN LIGHT THEME ===== */
 .theme-light .dropdown-menu {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .theme-light .dropdown-item:hover {

@@ -288,7 +288,8 @@ class PaymentBase(BaseModel):
 
 
 class PaymentCreate(PaymentBase):
-    pass
+    month_number: Optional[int] = None  # Alternative to chit_month_id
+    force_duplicate: bool = False  # Flag to allow duplicate payments after confirmation
 
 
 
