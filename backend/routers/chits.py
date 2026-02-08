@@ -259,7 +259,13 @@ async def add_chit_member(
     current_staff: Staff = Depends(require_admin),
     db: Session = Depends(get_db)
 ):
-    """Add a member to a chit (Admin only)"""
+    """Add a member to a chit (Admin only)
+    
+    This also creates DEBIT entries (dues) for all months in the AccountLedger,
+    ensuring proper tracking of what each member owes.
+    """
+    from models.account_ledger import AccountLedger, EntryType, LedgerSource
+    
     chit = db.query(Chit).filter(Chit.id == chit_id).first()
     
     if not chit:
@@ -288,24 +294,45 @@ async def add_chit_member(
             detail="User already in this chit"
         )
     
-    # Check if slot is taken
-    slot_taken = db.query(ChitMember).filter(
-        ChitMember.chit_id == chit_id,
-        ChitMember.slot_number == data.slot_number
-    ).first()
-    
-    if slot_taken:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Slot {data.slot_number} is already taken"
-        )
-    
-    # Validate slot number
-    if data.slot_number < 1 or data.slot_number > chit.total_months:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Slot number must be between 1 and {chit.total_months}"
-        )
+    # Auto-assign slot if not provided
+    if data.slot_number is None:
+        # Find next available slot
+        taken_slots = {m.slot_number for m in db.query(ChitMember).filter(
+            ChitMember.chit_id == chit_id
+        ).all()}
+        
+        slot_number = None
+        for i in range(1, chit.total_months + 1):
+            if i not in taken_slots:
+                slot_number = i
+                break
+        
+        if slot_number is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All slots are taken"
+            )
+    else:
+        slot_number = data.slot_number
+        
+        # Check if slot is taken
+        slot_taken = db.query(ChitMember).filter(
+            ChitMember.chit_id == chit_id,
+            ChitMember.slot_number == slot_number
+        ).first()
+        
+        if slot_taken:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Slot {slot_number} is already taken"
+            )
+        
+        # Validate slot number
+        if slot_number < 1 or slot_number > chit.total_months:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Slot number must be between 1 and {chit.total_months}"
+            )
     
     member = ChitMember(
         chit_id=chit_id,
@@ -317,13 +344,41 @@ async def add_chit_member(
     db.commit()
     db.refresh(member)
     
+    # === CREATE MONTHLY DUE ENTRIES ===
+    # Get all months for this chit
+    chit_months = db.query(ChitMonth).filter(
+        ChitMonth.chit_id == chit_id
+    ).order_by(ChitMonth.month_number).all()
+    
+    # Create DEBIT entry for each month (due amount)
+    monthly_due = float(chit.monthly_amount)
+    
+    for month in chit_months:
+        ledger_entry = AccountLedger(
+            user_id=data.user_id,
+            chit_id=chit_id,
+            chit_month_id=month.id,
+            entry_type=EntryType.DEBIT,
+            amount=monthly_due,
+            source=LedgerSource.MONTHLY_DUE,
+            reference_id=month.id,
+            reference_type="chit_month",
+            notes=f"Monthly due for Month {month.month_number}",
+            created_by=current_staff.id
+        )
+        db.add(ledger_entry)
+    
+    db.commit()
+    print(f"✅ Created {len(chit_months)} monthly due entries for user {user.name} in chit {chit.chit_name}")
+    
     return {
         "id": member.id,
         "chit_id": member.chit_id,
         "user_id": member.user_id,
         "user_name": user.name,
         "slot_number": member.slot_number,
-        "join_date": member.join_date
+        "join_date": member.join_date,
+        "monthly_dues_created": len(chit_months)
     }
 
 

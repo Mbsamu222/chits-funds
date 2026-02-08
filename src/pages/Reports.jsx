@@ -96,6 +96,19 @@ export default function Reports() {
                 api.get('/reports/profit/chits'),
                 api.get('/reports/profit/monthly')
             ]);
+<<<<<<< HEAD
+            setDashboardData(dashboardRes.data);
+            setChitProfits(chitsRes.data);
+            
+            // Handle both array response and object with months property
+            const monthlyData = Array.isArray(monthlyRes.data) 
+                ? monthlyRes.data 
+                : (monthlyRes.data?.months || []);
+            console.log('[DEBUG] Monthly data:', monthlyData);
+            setMonthlyProfits(monthlyData);
+        } catch (error) {
+            console.error('[DEBUG] Reports error:', error);
+=======
 
             // Transform dashboard data to flat structure for easy access
             const dashboard = dashboardRes.data;
@@ -130,6 +143,7 @@ export default function Reports() {
             }));
         } catch (error) {
             console.error('Failed to load reports:', error);
+>>>>>>> 02bde006476464e20ac8c8541abfe3de23c883c3
             toast.error('Failed to load reports');
         } finally {
             setLoading(false);

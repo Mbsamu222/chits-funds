@@ -9,6 +9,7 @@ from models.account_ledger import AccountLedger, EntryType, LedgerSource
 from models.user_balance import UserBalance
 from models.password_reset_token import PasswordResetToken
 from models.audit_log import AuditLog, AuditAction
+from models.auction import Auction, Bid, AuctionStatus, BidStatus
 
 __all__ = [
     "User",
@@ -24,7 +25,11 @@ __all__ = [
     "UserBalance",
     "PasswordResetToken",
     "AuditLog",
-    "AuditAction"
+    "AuditAction",
+    "Auction",
+    "Bid",
+    "AuctionStatus",
+    "BidStatus"
 ]
 
 

@@ -58,7 +58,14 @@ export default function Staff() {
         setSaving(true);
 
         try {
-            await api.post('/staff', formData);
+            const staffData = {
+                name: formData.name,
+                phone: formData.phone,
+                email: formData.email || null,
+                password: formData.password,
+                role: formData.role
+            };
+            await api.post('/staff', staffData);
             toast.success('Staff created successfully');
             setShowModal(false);
             resetForm();
@@ -381,8 +388,17 @@ export default function Staff() {
                 loading={loading}
                 searchValue={searchValue}
                 onSearchChange={setSearchValue}
-                emptyMessage="No staff members found"
+                emptyMessage={staff.length === 0 ? "No staff members yet" : "No staff match your search"}
                 emptyIcon={<FiUserCheck size={32} />}
+                emptyAction={staff.length === 0 && (
+                    <button
+                        onClick={() => { resetForm(); setShowModal(true); }}
+                        className="btn btn-primary"
+                        style={{ marginTop: '1rem' }}
+                    >
+                        <FiPlus /> Add First Staff Member
+                    </button>
+                )}
                 mobileCardRender={mobileCardRender}
             />
 

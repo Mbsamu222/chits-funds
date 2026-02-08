@@ -114,6 +114,8 @@ async def list_ledger_entries(
     chit_id: Optional[int] = None,
     entry_type: Optional[str] = None,
     source: Optional[str] = None,
+    month_number: Optional[int] = None,
+    year: Optional[int] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
     current_staff: Staff = Depends(get_current_staff),
@@ -122,7 +124,17 @@ async def list_ledger_entries(
     """
     List ledger entries with optional filters.
     Returns paginated results with user and chit details.
+    
+    Filters:
+    - user_id: Filter by user
+    - chit_id: Filter by chit
+    - entry_type: 'debit' or 'credit'
+    - source: 'monthly_due', 'payment', etc.
+    - month_number: Filter by chit month number (1-20)
+    - year: Filter by year of entry creation
     """
+    from dateutil.relativedelta import relativedelta
+    
     query = db.query(AccountLedger)
     
     if user_id:
@@ -133,6 +145,19 @@ async def list_ledger_entries(
         query = query.filter(AccountLedger.entry_type == entry_type)
     if source:
         query = query.filter(AccountLedger.source == source)
+    
+    # Filter by month number (requires joining with ChitMonth)
+    if month_number:
+        month_ids = db.query(ChitMonth.id).filter(
+            ChitMonth.month_number == month_number
+        ).all()
+        month_id_list = [m[0] for m in month_ids]
+        query = query.filter(AccountLedger.chit_month_id.in_(month_id_list))
+    
+    # Filter by year
+    if year:
+        from sqlalchemy import extract
+        query = query.filter(extract('year', AccountLedger.created_at) == year)
     
     # Order by newest first
     query = query.order_by(AccountLedger.created_at.desc())
@@ -151,10 +176,18 @@ async def list_ledger_entries(
         chit = db.query(Chit).filter(Chit.id == entry.chit_id).first()
         staff = db.query(Staff).filter(Staff.id == entry.created_by).first()
         
-        month_number = None
+        month_num = None
+        due_date = None
         if entry.chit_month_id:
             month = db.query(ChitMonth).filter(ChitMonth.id == entry.chit_month_id).first()
-            month_number = month.month_number if month else None
+            if month:
+                month_num = month.month_number
+                # Calculate due date based on chit start date + month number
+                if chit and chit.start_date:
+                    try:
+                        due_date = (chit.start_date + relativedelta(months=month.month_number - 1)).isoformat()
+                    except:
+                        due_date = None
         
         items.append({
             "id": entry.id,
@@ -163,7 +196,8 @@ async def list_ledger_entries(
             "chit_id": entry.chit_id,
             "chit_name": chit.chit_name if chit else "Unknown",
             "chit_month_id": entry.chit_month_id,
-            "month_number": month_number,
+            "month_number": month_num,
+            "due_date": due_date,  # When this payment is due
             "entry_type": entry.entry_type.value,
             "amount": float(entry.amount),
             "source": entry.source.value,
@@ -172,7 +206,7 @@ async def list_ledger_entries(
             "notes": entry.notes,
             "created_by_id": entry.created_by,
             "created_by_name": staff.name if staff else "Unknown",
-            "created_at": entry.created_at
+            "created_at": entry.created_at.isoformat() if entry.created_at else None
         })
     
     return {

@@ -92,6 +92,9 @@ async def create_payment(
     5. Any excess amount becomes advance credit
     6. Update UserBalance cache
     """
+    # DEBUG: Print incoming data
+    print(f"[DEBUG] Payment data received: user_id={payment_data.user_id}, chit_id={payment_data.chit_id}, amount={payment_data.amount_paid}, mode={payment_data.payment_mode}")
+    
     from models.account_ledger import AccountLedger, EntryType, LedgerSource
     from models.user_balance import UserBalance
     from sqlalchemy import func
@@ -122,10 +125,31 @@ async def create_payment(
             detail="Chit not found"
         )
     
-    # Verify chit_month if provided
-    if payment_data.chit_month_id:
+    # If month_number is provided instead of chit_month_id, find the chit_month_id
+    chit_month_id = payment_data.chit_month_id
+    if payment_data.month_number and not chit_month_id:
         chit_month = db.query(ChitMonth).filter(
-            ChitMonth.id == payment_data.chit_month_id,
+            ChitMonth.chit_id == payment_data.chit_id,
+            ChitMonth.month_number == payment_data.month_number
+        ).first()
+        if chit_month:
+            chit_month_id = chit_month.id
+        else:
+            # Create the month if it doesn't exist
+            chit_month = ChitMonth(
+                chit_id=payment_data.chit_id,
+                month_number=payment_data.month_number,
+                status="pending"
+            )
+            db.add(chit_month)
+            db.commit()
+            db.refresh(chit_month)
+            chit_month_id = chit_month.id
+    
+    # Verify chit_month if provided
+    if chit_month_id:
+        chit_month = db.query(ChitMonth).filter(
+            ChitMonth.id == chit_month_id,
             ChitMonth.chit_id == payment_data.chit_id
         ).first()
         if not chit_month:
@@ -138,56 +162,70 @@ async def create_payment(
     from models.chit_member import ChitMember
     from datetime import timedelta
     
-    # 1. Verify user is a member of this chit
+    # 1. Check if user is a member of this chit (warning only, not blocking)
     membership = db.query(ChitMember).filter(
         ChitMember.user_id == payment_data.user_id,
         ChitMember.chit_id == payment_data.chit_id,
         ChitMember.is_active == True
     ).first()
     
-    if not membership:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User is not an active member of this chit group"
-        )
+    is_member = membership is not None
+    print(f"[DEBUG] is_member={is_member}")
     
-    # 2. Validate payment amount (minimum and maximum limits)
+    # 2. Validate payment amount (minimum only - no maximum limit for flexibility)
     if payment_data.amount_paid <= 0:
+        print(f"[DEBUG] Amount validation failed: amount <= 0")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payment amount must be greater than zero"
         )
     
-    # Max payment = total chit amount (to prevent accidental large amounts)
-    if payment_data.amount_paid > float(chit.total_amount):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment amount cannot exceed total chit amount of {chit.total_amount}"
-        )
+    # Note: Max payment validation removed to allow flexibility
+    # (advance payments, multiple months, etc.)
+    print(f"[DEBUG] Chit total_amount={chit.total_amount}, monthly={chit.monthly_amount}, payment={payment_data.amount_paid}")
     
-    # 3. Check for duplicate payments (same user, chit, amount within 5 minutes)
+    # Convert payment mode string to enum
+    payment_mode = PaymentMode.GPAY if payment_data.payment_mode == "gpay" else PaymentMode.CASH
+    
+    # 3. Duplicate check - Check for recent duplicates
     five_minutes_ago = datetime.utcnow() - timedelta(minutes=5)
-    duplicate = db.query(Payment).filter(
+    duplicates = db.query(Payment).filter(
         Payment.user_id == payment_data.user_id,
         Payment.chit_id == payment_data.chit_id,
         Payment.amount_paid == payment_data.amount_paid,
+        Payment.payment_mode == payment_mode,
         Payment.payment_date >= five_minutes_ago
-    ).first()
+    ).all()
     
-    if duplicate:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Possible duplicate payment detected. A payment of the same amount was recorded {(datetime.utcnow() - duplicate.payment_date).seconds // 60} minutes ago. Wait 5 minutes or use a different amount."
-        )
+    duplicate_info = []
+    if duplicates:
+        for dup in duplicates:
+            duplicate_info.append({
+                "id": dup.id,
+                "amount": float(dup.amount_paid),
+                "payment_date": dup.payment_date.isoformat(),
+                "payment_mode": dup.payment_mode.value,
+                "notes": dup.notes
+            })
+        
+        # If force_duplicate flag is not set, return duplicate warning
+        if not getattr(payment_data, 'force_duplicate', False):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "Duplicate payment detected",
+                    "duplicates": duplicate_info
+                }
+            )
+    
+    print(f"[DEBUG] All validations passed, creating payment...")
 
-    
     # Create payment record
-    payment_mode = PaymentMode.GPAY if payment_data.payment_mode == "gpay" else PaymentMode.CASH
     
     payment = Payment(
         user_id=payment_data.user_id,
         chit_id=payment_data.chit_id,
-        chit_month_id=payment_data.chit_month_id,
+        chit_month_id=chit_month_id,  # Use the resolved chit_month_id
         amount_paid=payment_data.amount_paid,
         payment_mode=payment_mode,
         collected_by_staff_id=current_staff.id,
@@ -332,7 +370,8 @@ async def create_payment(
         "payment_date": payment.payment_date,
         "allocations": allocations,
         "advance_amount": advance_amount,
-        "message": "Payment recorded and allocated successfully"
+        "is_member": is_member,
+        "message": "Payment recorded successfully" + (" (Note: User is not a member of this chit)" if not is_member else "")
     }
 
 
@@ -442,3 +481,141 @@ async def get_payment(
         "payment_date": payment.payment_date,
         "notes": payment.notes
     }
+
+
+@router.get("/{payment_id}/receipt/pdf")
+async def generate_receipt_pdf(
+    payment_id: int,
+    current_staff: Staff = Depends(get_current_staff),
+    db: Session = Depends(get_db)
+):
+    """Generate and download PDF receipt for a payment"""
+    from fastapi.responses import FileResponse
+    from services.pdf_generator import generate_payment_receipt
+    import tempfile
+    
+    # Get payment details
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found"
+        )
+    
+    # Staff can only generate receipts for their assigned users' payments
+    if not current_staff.is_admin():
+        allowed_user_ids = get_staff_user_ids(current_staff, db)
+        if payment.user_id not in allowed_user_ids:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have access to this payment"
+            )
+    
+    # Fetch related data
+    user = db.query(User).filter(User.id == payment.user_id).first()
+    chit = db.query(Chit).filter(Chit.id == payment.chit_id).first()
+    
+    month_num = 0
+    total_months = chit.total_months if chit else 0
+    if payment.chit_month_id:
+        month = db.query(ChitMonth).filter(ChitMonth.id == payment.chit_month_id).first()
+        month_num = month.month_number if month else 0
+    
+    # Prepare data for PDF
+    payment_data = {
+        "receipt_no": f"RCP{payment.id:06d}",
+        "payment_date": payment.payment_date.strftime('%d %b %Y'),
+        "payer_name": user.name if user else "Unknown",
+        "payer_phone": user.phone if user else "",
+        "user_id": payment.user_id,
+        "chit_name": chit.chit_name if chit else "Unknown",
+        "month_number": month_num,
+        "total_months": total_months,
+        "amount": float(payment.amount_paid),
+        "payment_method": payment.payment_mode.value,
+        "status": "paid",
+        "notes": payment.notes or ""
+    }
+    
+    # Generate PDF in temp directory
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+    pdf_path = generate_payment_receipt(payment_data, temp_file.name)
+    
+    # Return PDF as download
+    return FileResponse(
+        pdf_path,
+        media_type='application/pdf',
+        filename=f'receipt_{payment.id}.pdf',
+        headers={"Content-Disposition": f"attachment; filename=receipt_{payment.id}.pdf"}
+    )
+
+
+@router.delete("/{payment_id}")
+async def delete_payment(
+    payment_id: int,
+    current_staff: Staff = Depends(get_current_staff),
+    db: Session = Depends(get_db)
+):
+    """Delete a payment and cleanup ledger entries"""
+    from models.account_ledger import AccountLedger, EntryType
+    from models.user_balance import UserBalance
+    from sqlalchemy import func
+    from decimal import Decimal
+    
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found"
+        )
+    
+    # Staff can only delete their own payments or admin can delete any
+    if not current_staff.is_admin() and payment.collected_by_staff_id != current_staff.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own payments"
+        )
+    
+    # Delete related ledger entries
+    db.query(AccountLedger).filter(
+        AccountLedger.reference_id == payment_id,
+        AccountLedger.reference_type == "payment"
+    ).delete()
+    
+    # Delete the payment
+    user_id = payment.user_id
+    chit_id = payment.chit_id
+    db.delete(payment)
+    db.commit()
+    
+    # Recalculate user balance
+    balance = db.query(UserBalance).filter(
+        UserBalance.user_id == user_id,
+        UserBalance.chit_id == chit_id
+    ).first()
+    
+    if balance:
+        total_debit = db.query(func.sum(AccountLedger.amount)).filter(
+            AccountLedger.user_id == user_id,
+            AccountLedger.chit_id == chit_id,
+            AccountLedger.entry_type == EntryType.DEBIT
+        ).scalar() or Decimal('0')
+        
+        total_credit = db.query(func.sum(AccountLedger.amount)).filter(
+            AccountLedger.user_id == user_id,
+            AccountLedger.chit_id == chit_id,
+            AccountLedger.entry_type == EntryType.CREDIT
+        ).scalar() or Decimal('0')
+        
+        balance.total_due = float(total_debit)
+        balance.total_paid = float(total_credit)
+        diff = float(total_debit) - float(total_credit)
+        balance.pending = max(0, diff)
+        balance.advance = max(0, -diff)
+        
+        db.commit()
+    
+    return {"message": "Payment deleted successfully"}
+

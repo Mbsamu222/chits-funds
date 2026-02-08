@@ -1,8 +1,14 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 import {
+<<<<<<< HEAD
+    FiHome, FiUsers, FiGrid, FiDollarSign,
+    FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook, FiSettings, FiAward
+=======
     FiHome, FiUsers, FiGrid,
     FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook
+>>>>>>> 02bde006476464e20ac8c8541abfe3de23c883c3
 } from 'react-icons/fi';
 import { LuIndianRupee } from "react-icons/lu";
 
@@ -14,9 +20,15 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
         { icon: FiUsers, label: 'Users', path: '/users' },
         { icon: FiUserCheck, label: 'Staff', path: '/staff', adminOnly: true },
         { icon: FiGrid, label: 'Chits', path: '/chits' },
+<<<<<<< HEAD
+        { icon: FiDollarSign, label: 'Payments', path: '/payments' },
+        { icon: FiAward, label: 'Auctions', path: '/auctions' },
+=======
         { icon: LuIndianRupee, label: 'Payments', path: '/payments' },
+>>>>>>> 02bde006476464e20ac8c8541abfe3de23c883c3
         { icon: FiBook, label: 'Accounts', path: '/accounts', adminOnly: true },
-        { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true }
+        { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true },
+        { icon: FiSettings, label: 'Settings', path: '/settings' }
     ];
 
     const visibleItems = menuItems.filter(item => !item.adminOnly || isAdmin());
@@ -28,7 +40,7 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
 
     return (
         <aside className={`sidebar ${collapsed ? 'collapsed' : ''} ${isOpen ? 'drawer-open' : ''}`}>
-            {/* Sidebar Header */}
+            {/* Sidebar Header with Toggle */}
             <div className="sidebar-header">
                 <div className="sidebar-logo">
                     <div className="sidebar-logo-icon">
@@ -42,7 +54,15 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
                     )}
                 </div>
 
-
+                {/* Desktop Toggle Button - Now in header */}
+                {/* <button
+                    onClick={onToggle}
+                    className="sidebar-toggle-desktop"
+                    aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    style={{ marginLeft: collapsed ? '0' : 'auto' }}
+                >
+                    {collapsed ? <FiChevronRight size={18} /> : <FiChevronLeft size={18} />}
+                </button> */}
 
                 {/* Mobile Close Button */}
                 <button
@@ -55,7 +75,7 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
             </div>
 
             {/* User Info */}
-            <div className="sidebar-user">
+            {/* <div className="sidebar-user">
                 <div className="sidebar-user-avatar">
                     {user?.name?.charAt(0).toUpperCase()}
                 </div>
@@ -65,7 +85,7 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
                         <span className="sidebar-user-role">{user?.role}</span>
                     </div>
                 )}
-            </div>
+            </div> */}
 
             {/* Navigation */}
             <nav className="sidebar-nav">
@@ -94,18 +114,8 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
                     <FiLogOut className="nav-icon" />
                     {!collapsed && <span className="nav-label">Logout</span>}
                 </button>
-
-                {/* Desktop Toggle Button */}
-                <div style={{ display: 'flex', justifyContent: collapsed ? 'center' : 'flex-end', marginTop: 'var(--space-4)' }}>
-                    <button
-                        onClick={onToggle}
-                        className="sidebar-toggle-desktop"
-                        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                    >
-                        {collapsed ? <FiChevronRight size={18} /> : <FiChevronLeft size={18} />}
-                    </button>
-                </div>
             </div>
         </aside>
     );
 }
+
