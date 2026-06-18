@@ -117,20 +117,16 @@ os.makedirs(upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=os.path.dirname(upload_dir)), name="uploads")
 
 # ===== INCLUDE ROUTERS =====
-# On Vercel: routes are prefixed with /api (frontend calls /api/payments, /api/chits, etc.)
-# On server: routes have no prefix (frontend calls /payments, /chits, etc.)
-api_prefix = "/api" if IS_VERCEL else ""
-
-app.include_router(auth_router, prefix=api_prefix)
-app.include_router(users_router, prefix=api_prefix)
-app.include_router(staff_router, prefix=api_prefix)
-app.include_router(chits_router, prefix=api_prefix)
-app.include_router(payments_router, prefix=api_prefix)
-app.include_router(reports_router, prefix=api_prefix)
-app.include_router(accounts_router, prefix=api_prefix)
-app.include_router(pamphlet_router, prefix=api_prefix)
-app.include_router(auctions_router, prefix=api_prefix)
-app.include_router(defaulters_router, prefix=api_prefix)
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(staff_router)
+app.include_router(chits_router)
+app.include_router(payments_router)
+app.include_router(reports_router)
+app.include_router(accounts_router)
+app.include_router(pamphlet_router)
+app.include_router(auctions_router)
+app.include_router(defaulters_router)
 
 
 @app.get("/")
@@ -146,13 +142,6 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "environment": "vercel" if IS_VERCEL else "server"}
-
-
-# Also expose health at /api/health on Vercel
-if IS_VERCEL:
-    @app.get("/api/health")
-    async def api_health_check():
-        return {"status": "healthy", "environment": "vercel"}
 
 
 if __name__ == "__main__":
