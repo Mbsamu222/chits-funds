@@ -13,7 +13,10 @@ import {
     FiRefreshCw,
     FiFilter,
     FiChevronRight,
-    FiCalendar
+    FiCalendar,
+    FiPlus,
+    FiTrash2,
+    FiFileText
 } from 'react-icons/fi';
 import { LuIndianRupee } from "react-icons/lu";
 import { useNavigate } from 'react-router-dom';
@@ -37,6 +40,18 @@ export default function Accounts() {
         month_number: '',
         year: '',
         chit_id: ''
+    });
+
+    // Accounts Note state
+    const [accountNotes, setAccountNotes] = useState(() => {
+        const saved = localStorage.getItem('chitfunds_account_notes');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [showAddNoteModal, setShowAddNoteModal] = useState(false);
+    const [noteForm, setNoteForm] = useState({
+        customer_name: '',
+        credit: '',
+        debit: ''
     });
 
     // Generate month options (1-20)
@@ -125,6 +140,38 @@ export default function Accounts() {
         });
     };
 
+    // Accounts Note functions
+    const saveNotesToStorage = (notes) => {
+        localStorage.setItem('chitfunds_account_notes', JSON.stringify(notes));
+    };
+
+    const handleAddNote = (e) => {
+        e.preventDefault();
+        const newNote = {
+            id: Date.now(),
+            sno: accountNotes.length + 1,
+            customer_name: noteForm.customer_name,
+            credit: parseFloat(noteForm.credit) || 0,
+            debit: parseFloat(noteForm.debit) || 0,
+            date_time: new Date().toISOString()
+        };
+        const updated = [...accountNotes, newNote];
+        setAccountNotes(updated);
+        saveNotesToStorage(updated);
+        setNoteForm({ customer_name: '', credit: '', debit: '' });
+        setShowAddNoteModal(false);
+        toast.success('Account note added');
+    };
+
+    const handleDeleteNote = (id) => {
+        const updated = accountNotes.filter(n => n.id !== id).map((n, idx) => ({ ...n, sno: idx + 1 }));
+        setAccountNotes(updated);
+        saveNotesToStorage(updated);
+        toast.success('Note deleted');
+    };
+
+    const totalCredit = accountNotes.reduce((sum, n) => sum + n.credit, 0);
+    const totalDebit = accountNotes.reduce((sum, n) => sum + n.debit, 0);
     const ledgerColumns = [
         {
             key: 'date',
@@ -390,6 +437,273 @@ export default function Accounts() {
                     </button>
                 </div>
             )}
+
+            {/* ===== ACCOUNTS NOTE SECTION ===== */}
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{
+                    padding: '1rem 1.5rem',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                }}>
+                    <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FiFileText style={{ color: 'var(--primary)' }} />
+                        Accounts <span style={{ color: 'var(--primary)' }}>Note</span>
+                    </h2>
+                    {isAdmin() && (
+                        <button
+                            onClick={() => setShowAddNoteModal(true)}
+                            className="btn btn-sm btn-primary"
+                        >
+                            <FiPlus size={14} /> Add Note
+                        </button>
+                    )}
+                </div>
+
+                {accountNotes.length === 0 ? (
+                    <div style={{ padding: '3rem 2rem', textAlign: 'center' }}>
+                        <FiFileText size={32} style={{ color: 'var(--text-dim)', marginBottom: '0.75rem' }} />
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>No account notes yet</p>
+                        <p style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.25rem' }}>Add a note to track customer credit and debit</p>
+                    </div>
+                ) : (
+                    <>
+                        {/* Desktop Table */}
+                        <div className="table-container hide-mobile">
+                            <table className="table">
+                                <thead>
+                                    <tr>
+                                        <th style={{ width: '60px' }}>S.No</th>
+                                        <th>Customer Name</th>
+                                        <th style={{ textAlign: 'right' }}>Credit (₹)</th>
+                                        <th style={{ textAlign: 'right' }}>Debit (₹)</th>
+                                        <th>Date & Time</th>
+                                        {isAdmin() && <th style={{ width: '60px' }}>Action</th>}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {accountNotes.map((note) => (
+                                        <tr key={note.id}>
+                                            <td>
+                                                <span style={{
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '0.5rem',
+                                                    background: 'rgba(99, 102, 241, 0.1)',
+                                                    color: 'var(--primary)',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.75rem'
+                                                }}>
+                                                    {note.sno}
+                                                </span>
+                                            </td>
+                                            <td style={{ fontWeight: 600 }}>{note.customer_name}</td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--success)' }}>
+                                                {note.credit > 0 ? formatCurrency(note.credit) : '-'}
+                                            </td>
+                                            <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--danger)' }}>
+                                                {note.debit > 0 ? formatCurrency(note.debit) : '-'}
+                                            </td>
+                                            <td style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                                                {formatDate(note.date_time)}
+                                            </td>
+                                            {isAdmin() && (
+                                                <td>
+                                                    <button
+                                                        onClick={() => handleDeleteNote(note.id)}
+                                                        className="btn-icon-sm btn-ghost"
+                                                        style={{ color: 'var(--danger)' }}
+                                                        title="Delete note"
+                                                    >
+                                                        <FiTrash2 size={14} />
+                                                    </button>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <td colSpan="2" style={{ fontWeight: 700, textAlign: 'right' }}>Totals</td>
+                                        <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--success)' }}>
+                                            {formatCurrency(totalCredit)}
+                                        </td>
+                                        <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--danger)' }}>
+                                            {formatCurrency(totalDebit)}
+                                        </td>
+                                        <td colSpan={isAdmin() ? 2 : 1} style={{ fontWeight: 700 }}>
+                                            Balance: <span style={{ color: (totalCredit - totalDebit) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                                {formatCurrency(Math.abs(totalCredit - totalDebit))}
+                                                {(totalCredit - totalDebit) >= 0 ? ' Cr' : ' Dr'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        {/* Mobile Card View */}
+                        <div className="hide-tablet-up" style={{ padding: '0.5rem' }}>
+                            {accountNotes.map((note) => (
+                                <div key={note.id} style={{
+                                    padding: '1rem',
+                                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.5rem'
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <span style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                width: '28px',
+                                                height: '28px',
+                                                borderRadius: '0.5rem',
+                                                background: 'rgba(99, 102, 241, 0.1)',
+                                                color: 'var(--primary)',
+                                                fontWeight: 700,
+                                                fontSize: '0.75rem',
+                                                flexShrink: 0
+                                            }}>
+                                                {note.sno}
+                                            </span>
+                                            <div>
+                                                <p style={{ fontWeight: 600 }}>{note.customer_name}</p>
+                                                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                                    {formatDate(note.date_time)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {isAdmin() && (
+                                            <button
+                                                onClick={() => handleDeleteNote(note.id)}
+                                                className="btn-icon-sm btn-ghost"
+                                                style={{ color: 'var(--danger)' }}
+                                            >
+                                                <FiTrash2 size={14} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '1rem', paddingLeft: '2.75rem' }}>
+                                        <div>
+                                            <p style={{ fontSize: '0.625rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Credit</p>
+                                            <p style={{ fontWeight: 700, color: 'var(--success)', fontSize: '0.9375rem' }}>
+                                                {note.credit > 0 ? formatCurrency(note.credit) : '-'}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontSize: '0.625rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Debit</p>
+                                            <p style={{ fontWeight: 700, color: 'var(--danger)', fontSize: '0.9375rem' }}>
+                                                {note.debit > 0 ? formatCurrency(note.debit) : '-'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {/* Mobile Totals */}
+                            <div style={{
+                                padding: '1rem',
+                                background: 'var(--surface)',
+                                borderRadius: '0 0 var(--radius-xl) var(--radius-xl)',
+                                display: 'flex',
+                                justifyContent: 'space-around',
+                                alignItems: 'center'
+                            }}>
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontSize: '0.625rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Total Credit</p>
+                                    <p style={{ fontWeight: 800, color: 'var(--success)' }}>{formatCurrency(totalCredit)}</p>
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontSize: '0.625rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Total Debit</p>
+                                    <p style={{ fontWeight: 800, color: 'var(--danger)' }}>{formatCurrency(totalDebit)}</p>
+                                </div>
+                                <div style={{ textAlign: 'center' }}>
+                                    <p style={{ fontSize: '0.625rem', color: 'var(--text-dim)', textTransform: 'uppercase', fontWeight: 600 }}>Balance</p>
+                                    <p style={{ fontWeight: 800, color: (totalCredit - totalDebit) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                        {formatCurrency(Math.abs(totalCredit - totalDebit))}
+                                        {(totalCredit - totalDebit) >= 0 ? ' Cr' : ' Dr'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+
+            {/* Add Note Modal */}
+            <Modal
+                isOpen={showAddNoteModal}
+                onClose={() => setShowAddNoteModal(false)}
+                title="Add Account Note"
+                footer={
+                    <>
+                        <button onClick={() => setShowAddNoteModal(false)} className="btn btn-secondary">
+                            Cancel
+                        </button>
+                        <button onClick={handleAddNote} className="btn btn-primary">
+                            <FiPlus size={16} /> Add Note
+                        </button>
+                    </>
+                }
+            >
+                <form onSubmit={handleAddNote} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div className="input-group">
+                        <label>Customer Name *</label>
+                        <input
+                            type="text"
+                            value={noteForm.customer_name}
+                            onChange={(e) => setNoteForm({ ...noteForm, customer_name: e.target.value })}
+                            className="input"
+                            placeholder="Enter customer name"
+                            required
+                        />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <div className="input-group">
+                            <label>Credit Amount (₹)</label>
+                            <input
+                                type="number"
+                                value={noteForm.credit}
+                                onChange={(e) => setNoteForm({ ...noteForm, credit: e.target.value })}
+                                className="input"
+                                placeholder="0"
+                                min="0"
+                            />
+                        </div>
+                        <div className="input-group">
+                            <label>Debit Amount (₹)</label>
+                            <input
+                                type="number"
+                                value={noteForm.debit}
+                                onChange={(e) => setNoteForm({ ...noteForm, debit: e.target.value })}
+                                className="input"
+                                placeholder="0"
+                                min="0"
+                            />
+                        </div>
+                    </div>
+                    <div style={{
+                        padding: '0.75rem',
+                        borderRadius: '0.75rem',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        border: '1px solid rgba(99, 102, 241, 0.15)',
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                    }}>
+                        <FiCalendar size={14} style={{ color: 'var(--primary)' }} />
+                        Date & Time will be recorded automatically
+                    </div>
+                </form>
+            </Modal>
 
             {/* Filters */}
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>

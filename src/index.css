@@ -424,6 +424,156 @@
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
 }
 
+/* ===== BOTTOM NAV LIGHT THEME ===== */
+.theme-light .bottom-nav {
+  background: rgba(255, 255, 255, 0.95);
+  border-top: 1px solid #e2e8f0;
+  backdrop-filter: blur(20px);
+}
+
+.theme-light .bottom-nav-item {
+  color: #64748b;
+}
+
+.theme-light .bottom-nav-item.active {
+  color: #4f46e5;
+}
+
+/* ===== MOBILE HEADER LIGHT THEME ===== */
+.theme-light .mobile-header {
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #e2e8f0;
+  backdrop-filter: blur(20px);
+}
+
+.theme-light .mobile-header-title {
+  color: #0f172a;
+}
+
+.theme-light .hamburger-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+}
+
+.theme-light .hamburger-btn:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ===== STAT VALUE LIGHT THEME ===== */
+.theme-light .stat-value {
+  background: linear-gradient(to right, #0f172a, #475569);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ===== SIDEBAR FOOTER LIGHT THEME ===== */
+.theme-light .sidebar-footer {
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+/* ===== SIDEBAR OVERLAY LIGHT THEME ===== */
+.theme-light .sidebar-overlay {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* ===== MODAL LIGHT THEME (extra) ===== */
+.theme-light .modal-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.theme-light .modal {
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+}
+
+/* ===== CHIP/TAB LIGHT THEME ===== */
+.theme-light .chip {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+
+.theme-light .chip:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.theme-light .chip.active {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.theme-light .tabs {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.theme-light .tab {
+  color: #64748b;
+}
+
+.theme-light .tab:hover {
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+/* ===== CARD BORDER LIGHT THEME ===== */
+.theme-light .card::before {
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
+}
+
+/* ===== CARD LIST ITEM LIGHT THEME ===== */
+.theme-light .card-list-item {
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+}
+
+.theme-light .card-list-item:active {
+  background: #f5f7fa;
+}
+
+/* ===== TOAST LIGHT THEME FIX ===== */
+.theme-light .Toastify__toast {
+  background: #fafbfc !important;
+  border: 1px solid #e8eaed !important;
+  color: #0f172a !important;
+}
+
+/* ===== CONFIRM DIALOG LIGHT THEME ===== */
+.theme-light .confirm-overlay {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* ===== CLOSE BUTTON LIGHT THEME ===== */
+.theme-light .sidebar-close-mobile {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+}
+
+.theme-light .sidebar-close-mobile:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* ===== EMPTY STATE LIGHT THEME ===== */
+.theme-light .empty-state-icon {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+/* ===== TOOLTIP LIGHT THEME ===== */
+.theme-light .tooltip::after {
+  background: #fafbfc;
+  border: 1px solid #e8eaed;
+  color: #0f172a;
+}
+
 
 /* ============================================
    BASE STYLES

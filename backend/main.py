@@ -20,7 +20,7 @@ from routers import (
     auctions_router,
     defaulters_router
 )
-from config import settings
+from config import settings, IS_VERCEL
 
 # Create all tables
 Base.metadata.create_all(bind=engine)
@@ -95,7 +95,12 @@ async def general_exception_handler(request: Request, exc: Exception):
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3000",
+        "*"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -106,21 +111,26 @@ app.add_middleware(
 # app.add_middleware(RateLimitMiddleware)
 
 # Mount static files for screenshots
+# On Vercel: /tmp/uploads/screenshots  |  On server: ../uploads/screenshots
 upload_dir = os.path.abspath(settings.UPLOAD_DIR)
 os.makedirs(upload_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=os.path.dirname(upload_dir)), name="uploads")
 
-# Include routers
-app.include_router(auth_router)
-app.include_router(users_router)
-app.include_router(staff_router)
-app.include_router(chits_router)
-app.include_router(payments_router)
-app.include_router(reports_router)
-app.include_router(accounts_router)
-app.include_router(pamphlet_router)
-app.include_router(auctions_router)
-app.include_router(defaulters_router)
+# ===== INCLUDE ROUTERS =====
+# On Vercel: routes are prefixed with /api (frontend calls /api/payments, /api/chits, etc.)
+# On server: routes have no prefix (frontend calls /payments, /chits, etc.)
+api_prefix = "/api" if IS_VERCEL else ""
+
+app.include_router(auth_router, prefix=api_prefix)
+app.include_router(users_router, prefix=api_prefix)
+app.include_router(staff_router, prefix=api_prefix)
+app.include_router(chits_router, prefix=api_prefix)
+app.include_router(payments_router, prefix=api_prefix)
+app.include_router(reports_router, prefix=api_prefix)
+app.include_router(accounts_router, prefix=api_prefix)
+app.include_router(pamphlet_router, prefix=api_prefix)
+app.include_router(auctions_router, prefix=api_prefix)
+app.include_router(defaulters_router, prefix=api_prefix)
 
 
 @app.get("/")
@@ -128,13 +138,21 @@ async def root():
     return {
         "message": "Chit Fund Management System API",
         "docs": "/docs",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "environment": "vercel" if IS_VERCEL else "server"
     }
 
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "environment": "vercel" if IS_VERCEL else "server"}
+
+
+# Also expose health at /api/health on Vercel
+if IS_VERCEL:
+    @app.get("/api/health")
+    async def api_health_check():
+        return {"status": "healthy", "environment": "vercel"}
 
 
 if __name__ == "__main__":

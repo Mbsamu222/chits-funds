@@ -255,7 +255,6 @@ export default function Chits() {
                                 padding: '1.25rem',
                                 textDecoration: 'none',
                                 animationDelay: `${index * 50}ms`,
-                                background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(30, 41, 59, 0.7) 100%)',
                                 border: '1px solid rgba(99, 102, 241, 0.2)'
                             }}
                         >
@@ -268,11 +267,11 @@ export default function Chits() {
                                         overflow: 'hidden',
                                         textOverflow: 'ellipsis',
                                         whiteSpace: 'nowrap',
-                                        color: '#f8fafc'
+                                        color: 'var(--text)'
                                     }}>
                                         {chit.chit_name}
                                     </h3>
-                                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
                                         <FiCalendar size={12} />
                                         {new Date(chit.start_date).toLocaleDateString('en-IN', {
                                             month: 'short',
@@ -293,12 +292,12 @@ export default function Chits() {
                                     gap: '0.75rem',
                                     padding: '1rem',
                                     borderRadius: '0.75rem',
-                                    background: 'rgba(15, 23, 42, 0.6)',
+                                    background: 'var(--surface-light)',
                                     border: '1px solid rgba(99, 102, 241, 0.15)'
                                 }}
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <LuIndianRupee size={14} color="#6366f1" /> Total
                                     </span>
                                     <span style={{ fontWeight: 700, color: '#818cf8', fontSize: '1rem' }}>
@@ -306,15 +305,15 @@ export default function Chits() {
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <FiCalendar size={14} color="#6366f1" /> Monthly
                                     </span>
-                                    <span style={{ fontWeight: 600, color: '#f8fafc' }}>
+                                    <span style={{ fontWeight: 600, color: 'var(--text)' }}>
                                         {formatCurrency(chit.monthly_amount)}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.875rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <FiClock size={14} color="#6366f1" /> Duration
                                     </span>
                                     <span style={{ fontWeight: 600, color: '#2dd4bf' }}>
@@ -326,11 +325,11 @@ export default function Chits() {
                             {/* Progress */}
                             <div style={{ marginTop: '1rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-                                    <span style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                    <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                         <FiUsers size={12} />
                                         Members: {chit.member_count}/{chit.total_months}
                                     </span>
-                                    <span style={{ color: '#f8fafc', fontWeight: 600 }}>
+                                    <span style={{ color: 'var(--text)', fontWeight: 600 }}>
                                         {Math.round((chit.member_count / chit.total_months) * 100)}%
                                     </span>
                                 </div>

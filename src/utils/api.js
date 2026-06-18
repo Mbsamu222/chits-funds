@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+/**
+ * API Base URL:
+ * - On Vercel:  VITE_API_URL is "/api" (same-origin, routed to Python serverless function)
+ * - On Server:  VITE_API_URL is "http://localhost:8000" (or your server URL)
+ * - Fallback:   defaults to "http://localhost:8000" for local development
+ */
 const api = axios.create({
-    baseURL: 'http://localhost:8000',
+    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
     headers: {
         'Content-Type': 'application/json'
     }

@@ -34,7 +34,6 @@ export default function ChitDetail() {
         auction_date: new Date().toISOString().split('T')[0],
         winner_user_id: '',
         payout_amount: '',
-        admin_profit: '',
         status: 'completed'
     });
 
@@ -108,7 +107,6 @@ export default function ChitDetail() {
             auction_date: month.auction_date || new Date().toISOString().split('T')[0],
             winner_user_id: month.winner_user_id || '',
             payout_amount: month.payout_amount || '',
-            admin_profit: month.admin_profit || (chit.total_amount * 0.05),
             status: 'completed'
         });
         setIsAuctionModalOpen(true);
@@ -123,7 +121,6 @@ export default function ChitDetail() {
                 auction_date: auctionForm.auction_date || null,
                 winner_user_id: auctionForm.winner_user_id ? parseInt(auctionForm.winner_user_id) : null,
                 payout_amount: auctionForm.payout_amount ? parseFloat(auctionForm.payout_amount) : null,
-                admin_profit: auctionForm.admin_profit ? parseFloat(auctionForm.admin_profit) : null,
                 status: auctionForm.status || 'completed'
             };
             await api.put(`/chits/${id}/months/${selectedMonth.month_number}`, data);
@@ -490,12 +487,7 @@ export default function ChitDetail() {
                                                 {formatCurrency(month.payout_amount)}
                                             </span>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: 'var(--text-muted)' }}>Profit</span>
-                                            <span style={{ fontWeight: 500, color: 'var(--success)' }}>
-                                                +{formatCurrency(month.admin_profit)}
-                                            </span>
-                                        </div>
+
                                         <button
                                             onClick={() => setShowPamphlet(month.month_number)}
                                             className="btn btn-sm btn-secondary"
@@ -630,27 +622,15 @@ export default function ChitDetail() {
                             ))}
                         </select>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                        <div className="input-group">
-                            <label>Payout Amount (₹) *</label>
-                            <input
-                                type="number"
-                                className="input"
-                                required
-                                value={auctionForm.payout_amount}
-                                onChange={(e) => setAuctionForm({ ...auctionForm, payout_amount: e.target.value })}
-                            />
-                        </div>
-                        <div className="input-group">
-                            <label>Admin Profit (₹) *</label>
-                            <input
-                                type="number"
-                                className="input"
-                                required
-                                value={auctionForm.admin_profit}
-                                onChange={(e) => setAuctionForm({ ...auctionForm, admin_profit: e.target.value })}
-                            />
-                        </div>
+                    <div className="input-group">
+                        <label>Payout Amount (₹) *</label>
+                        <input
+                            type="number"
+                            className="input"
+                            required
+                            value={auctionForm.payout_amount}
+                            onChange={(e) => setAuctionForm({ ...auctionForm, payout_amount: e.target.value })}
+                        />
                     </div>
                 </form>
             </Modal>
