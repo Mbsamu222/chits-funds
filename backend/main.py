@@ -24,15 +24,19 @@ from routers import (
 )
 from config import settings, IS_VERCEL
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
-
 from contextlib import asynccontextmanager
 
 # Lifespan context manager for startup/shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Create default admin
+    # Startup: Create tables + default admin
+    # Table creation is done here (not at module level) so that
+    # Vercel's /tmp is available and writable during cold start.
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"[WARN] Could not create tables: {e}")
+    
     from sqlalchemy.orm import Session
     from database import SessionLocal
     from auth.jwt_handler import get_password_hash
@@ -47,7 +51,7 @@ async def lifespan(app: FastAPI):
             admin = Staff(
                 name="Admin",
                 phone="9999999999",
-                email="admin@Popular Traders Chits.com",
+                email="admin@populartraders.com",
                 password_hash=get_password_hash("admin123"),
                 role=StaffRole.ADMIN
             )
@@ -56,6 +60,8 @@ async def lifespan(app: FastAPI):
             print("[OK] Default admin created: phone=9999999999, password=admin123")
         else:
             print("[OK] Admin already exists")
+    except Exception as e:
+        print(f"[WARN] Admin seed failed: {e}")
     finally:
         db.close()
     
