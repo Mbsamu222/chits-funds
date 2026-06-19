@@ -10,6 +10,7 @@ from models.user_balance import UserBalance
 from models.password_reset_token import PasswordResetToken
 from models.audit_log import AuditLog, AuditAction
 from models.auction import Auction, Bid, AuctionStatus, BidStatus
+from models.account_note import AccountNote
 
 __all__ = [
     "User",
@@ -29,7 +30,8 @@ __all__ = [
     "Auction",
     "Bid",
     "AuctionStatus",
-    "BidStatus"
+    "BidStatus",
+    "AccountNote"
 ]
 
 

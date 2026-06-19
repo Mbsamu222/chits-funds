@@ -8,6 +8,7 @@ from routers.accounts import router as accounts_router
 from routers.pamphlet import router as pamphlet_router
 from routers.auctions import router as auctions_router
 from routers.defaulters import router as defaulters_router
+from routers.notes import router as notes_router
 
 __all__ = [
     "chits_router",
@@ -20,5 +21,6 @@ __all__ = [
     "pamphlet_router",
     "auctions_router",
     "defaulters_router",
+    "notes_router",
 ]
 

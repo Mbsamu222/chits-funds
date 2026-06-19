@@ -6,7 +6,8 @@ import os
 from database import engine, Base
 from models import (
     User, Staff, StaffUser, Chit, ChitMember, ChitMonth, Payment, 
-    AccountLedger, UserBalance, PasswordResetToken, AuditLog, Auction, Bid
+    AccountLedger, UserBalance, PasswordResetToken, AuditLog, Auction, Bid,
+    AccountNote
 )
 from routers import (
     auth_router,
@@ -18,7 +19,8 @@ from routers import (
     accounts_router,
     pamphlet_router,
     auctions_router,
-    defaulters_router
+    defaulters_router,
+    notes_router
 )
 from config import settings, IS_VERCEL
 
@@ -45,27 +47,30 @@ async def lifespan(app: FastAPI):
             admin = Staff(
                 name="Admin",
                 phone="9999999999",
-                email="admin@chitfunds.com",
+                email="admin@Popular Traders Chits.com",
                 password_hash=get_password_hash("admin123"),
                 role=StaffRole.ADMIN
             )
             db.add(admin)
             db.commit()
-            print("✅ Default admin created: phone=9999999999, password=admin123")
+            print("[OK] Default admin created: phone=9999999999, password=admin123")
         else:
-            print("✅ Admin already exists")
+            print("[OK] Admin already exists")
     finally:
         db.close()
     
     yield
     # Shutdown logic (none for now)
 
-# Create FastAPI app
+# Create FastAPI app — Swagger docs controlled by SHOW_DOCS env variable
 app = FastAPI(
     title="Chit Fund Management System",
     description="Complete chit fund management with role-based access",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs" if settings.SHOW_DOCS else None,
+    redoc_url="/redoc" if settings.SHOW_DOCS else None,
+    openapi_url="/openapi.json" if settings.SHOW_DOCS else None
 )
 
 # Add exception handlers for debugging
@@ -92,15 +97,10 @@ async def general_exception_handler(request: Request, exc: Exception):
         content={"detail": str(exc)}
     )
 
-# CORS middleware
+# CORS middleware — origins read from .env (CORS_ORIGINS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:3000",
-        "*"
-    ],
+    allow_origins=settings.cors_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -140,6 +140,7 @@ app.include_router(accounts_router)
 app.include_router(pamphlet_router)
 app.include_router(auctions_router)
 app.include_router(defaulters_router)
+app.include_router(notes_router)
 
 
 @app.get("/")

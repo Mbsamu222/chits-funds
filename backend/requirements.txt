@@ -13,3 +13,4 @@ aiofiles
 reportlab
 Pillow
 pydantic[email]
+python-dateutil

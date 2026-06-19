@@ -28,8 +28,8 @@ IS_VERCEL = _detect_serverless()
 class Settings(BaseSettings):
     # Database — Vercel uses /tmp (ephemeral), normal server uses local path
     DATABASE_URL: str = (
-        "sqlite:////tmp/chitfunds.db" if IS_VERCEL 
-        else "sqlite:///./chitfunds.db"
+        "sqlite:////tmp/Popular Traders Chits.db" if IS_VERCEL 
+        else "sqlite:///./Popular Traders Chits.db"
     )
     
     # JWT
@@ -42,6 +42,17 @@ class Settings(BaseSettings):
         "/tmp/uploads/screenshots" if IS_VERCEL 
         else "../uploads/screenshots"
     )
+    
+    # CORS — Comma-separated allowed origins (read from .env)
+    CORS_ORIGINS: str = "http://localhost:5173,http://localhost:5174,http://localhost:3000"
+    
+    # Swagger/OpenAPI docs — set to true to show /docs and /redoc
+    SHOW_DOCS: bool = True
+    
+    @property
+    def cors_origins_list(self) -> list:
+        """Parse CORS_ORIGINS string into a list of origins."""
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
     
     class Config:
         env_file = ".env"
