@@ -14,6 +14,7 @@ import Reports from './pages/Reports';
 import Accounts from './pages/Accounts';
 import Auctions from './pages/Auctions';
 import Settings from './pages/Settings';
+import Notes from './pages/Notes';
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="accounts" element={<Accounts />} />
         <Route path="auctions" element={<Auctions />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="notes" element={<Notes />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

@@ -3,31 +3,84 @@ import { useTheme } from '../context/ThemeContext';
 
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useTheme();
+  const isLight = theme === 'light';
 
   return (
     <button
       onClick={toggleTheme}
-      className="relative w-14 h-7 bg-slate-700 dark:bg-slate-600 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary-light focus:ring-offset-2 dark:focus:ring-offset-slate-900"
       aria-label="Toggle theme"
-      title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      title={`Switch to ${isLight ? 'dark' : 'light'} mode`}
+      style={{
+        position: 'relative',
+        width: '56px',
+        height: '30px',
+        borderRadius: '9999px',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '3px',
+        background: isLight
+          ? 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)'
+          : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        boxShadow: isLight
+          ? '0 2px 8px rgba(245, 158, 11, 0.3)'
+          : '0 2px 8px rgba(99, 102, 241, 0.3)',
+        outline: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      }}
     >
       {/* Sliding Circle */}
       <div
-        className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-300 ease-in-out flex items-center justify-center ${
-          theme === 'light' ? 'translate-x-7' : 'translate-x-0'
-        }`}
+        style={{
+          width: '24px',
+          height: '24px',
+          borderRadius: '50%',
+          background: 'white',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+          transform: isLight ? 'translateX(26px)' : 'translateX(0)',
+          transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
       >
-        {theme === 'light' ? (
-          <FiSun className="w-3 h-3 text-amber-500" />
+        {isLight ? (
+          <FiSun style={{ width: '14px', height: '14px', color: '#f59e0b' }} />
         ) : (
-          <FiMoon className="w-3 h-3 text-indigo-600" />
+          <FiMoon style={{ width: '14px', height: '14px', color: '#6366f1' }} />
         )}
       </div>
-      
+
       {/* Background Icons */}
-      <div className="absolute inset-0 flex items-center justify-between px-1.5 pointer-events-none">
-        <FiMoon className={`w-3 h-3 transition-opacity duration-300 ${theme === 'dark' ? 'text-slate-400 opacity-70' : 'text-slate-500 opacity-30'}`} />
-        <FiSun className={`w-3 h-3 transition-opacity duration-300 ${theme === 'light' ? 'text-amber-400 opacity-70' : 'text-amber-500 opacity-30'}`} />
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 7px',
+          pointerEvents: 'none',
+        }}
+      >
+        <FiMoon
+          style={{
+            width: '12px',
+            height: '12px',
+            color: 'white',
+            opacity: isLight ? 0.3 : 0,
+            transition: 'opacity 0.3s',
+          }}
+        />
+        <FiSun
+          style={{
+            width: '12px',
+            height: '12px',
+            color: 'white',
+            opacity: isLight ? 0 : 0.3,
+            transition: 'opacity 0.3s',
+          }}
+        />
       </div>
     </button>
   );

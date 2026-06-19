@@ -1,21 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import {
-    FiMoon, FiSun, FiUser, FiInfo,
+    FiMoon, FiSun, FiInfo,
     FiMonitor, FiCheck
 } from 'react-icons/fi';
 
 export default function Settings() {
-    const { user } = useAuth();
-    const [theme, setTheme] = useState(() => {
-        return localStorage.getItem('theme') || 'dark';
-    });
-
-    useEffect(() => {
-        document.documentElement.classList.remove('theme-light', 'theme-dark');
-        document.documentElement.classList.add(`theme-${theme}`);
-        localStorage.setItem('theme', theme);
-    }, [theme]);
+    const { theme, setTheme } = useTheme();
 
     const themes = [
         { id: 'dark', label: 'Dark', icon: FiMoon, desc: 'Easy on the eyes' },
@@ -133,38 +123,6 @@ export default function Settings() {
                 </div>
             </div>
 
-            {/* User Profile */}
-            <div style={cardStyle}>
-                <div style={sectionHeaderStyle}>
-                    <div style={iconBoxStyle('linear-gradient(135deg, #ec4899, #f43f5e)')}>
-                        <FiUser size={20} />
-                    </div>
-                    <div>
-                        <h2 style={{ fontSize: '1.125rem', fontWeight: 700 }}>Profile</h2>
-                        <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Your account details</p>
-                    </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-                    <div style={infoBoxStyle}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Name</p>
-                        <p style={{ fontWeight: 600 }}>{user?.name || 'N/A'}</p>
-                    </div>
-                    <div style={infoBoxStyle}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Role</p>
-                        <p style={{ fontWeight: 600, textTransform: 'capitalize' }}>{user?.role || 'N/A'}</p>
-                    </div>
-                    <div style={infoBoxStyle}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Phone</p>
-                        <p style={{ fontWeight: 600 }}>{user?.phone || 'N/A'}</p>
-                    </div>
-                    <div style={infoBoxStyle}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Email</p>
-                        <p style={{ fontWeight: 600 }}>{user?.email || 'N/A'}</p>
-                    </div>
-                </div>
-            </div>
-
             {/* App Info */}
             <div style={cardStyle}>
                 <div style={sectionHeaderStyle}>
@@ -180,19 +138,14 @@ export default function Settings() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                     <div style={infoBoxStyle}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>App Name</p>
-                        <p style={{ fontWeight: 600 }}>ChitFunds</p>
+                        <p style={{ fontWeight: 600 }}>Popular Traders Chits</p>
                     </div>
                     <div style={infoBoxStyle}>
                         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Version</p>
                         <p style={{ fontWeight: 600 }}>1.0.0</p>
-                    </div>
-                    <div style={infoBoxStyle}>
-                        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>Framework</p>
-                        <p style={{ fontWeight: 600 }}>React + Vite</p>
                     </div>
                 </div>
             </div>
         </div>
     );
 }
-

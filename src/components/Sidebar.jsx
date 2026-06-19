@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
 import {
     FiHome, FiUsers, FiGrid, FiDollarSign,
-    FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook, FiSettings, FiAward
+    FiPieChart, FiLogOut, FiX, FiChevronLeft, FiChevronRight, FiUserCheck, FiBook, FiSettings, FiAward, FiFileText
 } from 'react-icons/fi';
 import { LuIndianRupee } from "react-icons/lu";
 
@@ -18,6 +18,7 @@ export default function Sidebar({ collapsed, onToggle, isOpen, onClose }) {
         { icon: FiDollarSign, label: 'Payments', path: '/payments' },
         { icon: FiAward, label: 'Auctions', path: '/auctions' },
         { icon: FiBook, label: 'Accounts', path: '/accounts', adminOnly: true },
+        { icon: FiFileText, label: 'Notes', path: '/notes', adminOnly: true },
         { icon: FiPieChart, label: 'Reports', path: '/reports', adminOnly: true },
         { icon: FiSettings, label: 'Settings', path: '/settings' }
     ];
