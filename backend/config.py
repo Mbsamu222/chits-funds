@@ -3,8 +3,26 @@ from functools import lru_cache
 import os
 
 
-# Detect if running on Vercel (serverless)
-IS_VERCEL = os.getenv("VERCEL", "").lower() in ("1", "true")
+def _detect_serverless() -> bool:
+    """Detect if running on Vercel/serverless (read-only filesystem)."""
+    # Check Vercel-specific env vars (fast path)
+    if os.getenv("VERCEL", "").lower() in ("1", "true"):
+        return True
+    if os.getenv("VERCEL_ENV"):  # set to 'production', 'preview', or 'development'
+        return True
+    if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):  # Vercel runs on AWS Lambda
+        return True
+    # Ultimate fallback: check if the filesystem is read-only
+    try:
+        test_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_probe_rw")
+        os.makedirs(test_path, exist_ok=True)
+        os.rmdir(test_path)
+        return False  # project root is writable → not serverless
+    except Exception:
+        return True   # project root is read-only → serverless
+
+
+IS_VERCEL = _detect_serverless()
 
 
 class Settings(BaseSettings):

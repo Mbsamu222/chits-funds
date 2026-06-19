@@ -112,9 +112,22 @@ app.add_middleware(
 
 # Mount static files for screenshots
 # On Vercel: /tmp/uploads/screenshots  |  On server: ../uploads/screenshots
-upload_dir = os.path.abspath(settings.UPLOAD_DIR)
-os.makedirs(upload_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=os.path.dirname(upload_dir)), name="uploads")
+if IS_VERCEL:
+    upload_dir = "/tmp/uploads/screenshots"
+else:
+    upload_dir = os.path.abspath(settings.UPLOAD_DIR)
+
+try:
+    os.makedirs(upload_dir, exist_ok=True)
+except OSError:
+    # Fallback to /tmp if the filesystem is read-only (Vercel)
+    upload_dir = "/tmp/uploads/screenshots"
+    os.makedirs(upload_dir, exist_ok=True)
+
+# Mount the parent "uploads" directory for static file serving
+static_root = os.path.dirname(upload_dir)
+if os.path.isdir(static_root):
+    app.mount("/uploads", StaticFiles(directory=static_root), name="uploads")
 
 # ===== INCLUDE ROUTERS =====
 app.include_router(auth_router)
